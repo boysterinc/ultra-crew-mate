@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Plus, Activity } from "lucide-react";
@@ -7,6 +7,7 @@ import AthleteFormDialog from "@/components/AthleteFormDialog";
 import SettingsButton from "@/components/SettingsButton";
 import { useRaceStore } from "@/lib/store";
 import { Athlete } from "@/lib/types";
+import { nextEta, totalLapsFor } from "@/lib/race";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,10 +21,35 @@ import {
 
 const Index = () => {
   const athletes = useRaceStore((s) => s.athletes);
+  const allLaps = useRaceStore((s) => s.laps);
   const deleteAthlete = useRaceStore((s) => s.deleteAthlete);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Athlete | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Athlete | null>(null);
+
+  // Re-tick every 5s so ordering follows live ETA
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => setTick((n) => n + 1), 5000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  const sortedAthletes = useMemo(() => {
+    const now = Date.now();
+    const score = (a: Athlete) => {
+      const laps = allLaps
+        .filter((l) => l.athleteId === a.id)
+        .sort((x, y) => x.lapNumber - y.lapNumber);
+      const finished = laps.length >= totalLapsFor(a);
+      if (finished) return Number.POSITIVE_INFINITY; // push to bottom
+      const eta = nextEta(laps);
+      if (!eta) return Number.POSITIVE_INFINITY - 1; // no data yet → bottom (above finished)
+      const ms = eta - now;
+      // Overdue runners get the smallest score (most urgent), then soonest ETA
+      return ms < 0 ? ms : ms;
+    };
+    return [...athletes].sort((a, b) => score(a) - score(b));
+  }, [athletes, allLaps]);
 
   return (
     <AppShell
@@ -65,7 +91,7 @@ const Index = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {athletes.map((a) => (
+          {sortedAthletes.map((a) => (
             <AthleteCard
               key={a.id}
               athlete={a}
