@@ -19,7 +19,7 @@ import { formatDuration } from "@/lib/format";
 interface CheckpointButtonProps {
   athlete: Athlete;
   lastTimestamp?: number;
-  size?: "lg" | "md";
+  size?: "lg" | "md" | "sm";
 }
 
 const CheckpointButton = ({ athlete, lastTimestamp, size = "md" }: CheckpointButtonProps) => {
@@ -59,12 +59,12 @@ const CheckpointButton = ({ athlete, lastTimestamp, size = "md" }: CheckpointBut
         onClick={onClick}
         className={cn(
           "group relative w-full select-none rounded-2xl gradient-primary font-bold uppercase tracking-wider text-primary-foreground shadow-glow transition-transform active:scale-[0.97]",
-          size === "lg" ? "h-24 text-2xl" : "h-20 text-xl",
+          size === "lg" ? "h-24 text-2xl" : size === "sm" ? "h-12 text-sm" : "h-20 text-xl",
           pressed && "ring-4 ring-primary-glow/60"
         )}
       >
         <span className="flex items-center justify-center gap-2">
-          <Zap className="h-6 w-6" strokeWidth={2.5} />
+          <Zap className={size === "sm" ? "h-4 w-4" : "h-6 w-6"} strokeWidth={2.5} />
           Checkpoint
         </span>
       </button>
