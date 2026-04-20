@@ -127,6 +127,14 @@ const NutritionPlan = () => {
         </div>
       </div>
 
+      <Button
+        variant="default"
+        className="mt-4 w-full gap-2"
+        onClick={() => navigate("/nutrition/edit")}
+      >
+        <Table2 className="h-4 w-4" /> Edit full plan as table
+      </Button>
+
       <section className="mt-6">
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Items for this lap
