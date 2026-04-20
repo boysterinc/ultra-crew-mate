@@ -27,6 +27,7 @@ const QUICK_ITEMS = ["Gel", "Water", "Electrolytes", "Banana", "Bar", "Salt cap"
 
 const NutritionPlan = () => {
   const athletes = useRaceStore((s) => s.athletes);
+  const allPlans = useRaceStore((s) => s.plans);
   const selectedId = useRaceStore((s) => s.selectedAthleteId);
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const planFor = useRaceStore((s) => s.planFor);
