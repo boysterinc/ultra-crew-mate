@@ -34,6 +34,7 @@ const NutritionPlan = () => {
   const planFor = useRaceStore((s) => s.planFor);
   const setPlan = useRaceStore((s) => s.setPlan);
   const duplicate = useRaceStore((s) => s.duplicatePlanToRange);
+  const navigate = useNavigate();
 
   const athlete = athletes.find((a) => a.id === selectedId) ?? athletes[0] ?? null;
   const totalLaps = athlete ? totalLapsFor(athlete) : 0;
