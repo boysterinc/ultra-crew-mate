@@ -245,53 +245,101 @@ interface PlanOverviewProps {
 }
 
 const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump }: PlanOverviewProps) => {
+  const setPlan = useRaceStore((s) => s.setPlan);
+
   const athletePlans = plans
-    .filter((p) => p.athleteId === athleteId && p.items.length > 0 && p.lapNumber <= totalLaps)
+    .filter((p) => p.athleteId === athleteId && p.lapNumber <= totalLaps)
     .sort((a, b) => a.lapNumber - b.lapNumber);
+  const nonEmpty = athletePlans.filter((p) => p.items.length > 0);
+
+  // Union of all item labels currently used across this athlete's plans
+  const usedLabels = Array.from(
+    new Set(athletePlans.flatMap((p) => p.items.map((it) => it.label)))
+  ).sort();
+
+  const removeLabelEverywhere = (label: string) => {
+    athletePlans.forEach((p) => {
+      if (p.items.some((it) => it.label === label)) {
+        setPlan(
+          athleteId,
+          p.lapNumber,
+          p.items.filter((it) => it.label !== label)
+        );
+      }
+    });
+    toast.success(`Removed "${label}" from all laps`);
+  };
 
   return (
-    <section className="mt-8">
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-        All planned laps ({athletePlans.length})
-      </h2>
-      {athletePlans.length === 0 ? (
-        <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
-          No plans yet. Add items above to start building the race nutrition plan.
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {athletePlans.map((p) => (
-            <button
-              key={p.lapNumber}
-              onClick={() => onJump(p.lapNumber)}
-              className={`flex w-full items-start justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
-                p.lapNumber === currentLap
-                  ? "border-primary bg-primary/10"
-                  : "border-border bg-card hover:border-primary/50"
-              }`}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lap</span>
-                  <span className="tabular text-lg font-bold leading-none">{p.lapNumber}</span>
-                  <span className="text-xs text-muted-foreground">/ {totalLaps}</span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {p.items.map((it) => (
-                    <span
-                      key={it.id}
-                      className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
-                    >
-                      {it.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </button>
-          ))}
+    <section className="mt-8 space-y-6">
+      {usedLabels.length > 0 && (
+        <div>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Items in use ({usedLabels.length})
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {usedLabels.map((label) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary pl-3 pr-1 py-1 text-xs font-medium"
+              >
+                {label}
+                <button
+                  onClick={() => removeLabelEverywhere(label)}
+                  className="ml-1 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+                  title={`Remove "${label}" from all laps`}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
         </div>
       )}
+
+      <div>
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          All planned laps ({nonEmpty.length})
+        </h2>
+        {nonEmpty.length === 0 ? (
+          <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+            No plans yet. Add items above to start building the race nutrition plan.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {nonEmpty.map((p) => (
+              <button
+                key={p.lapNumber}
+                onClick={() => onJump(p.lapNumber)}
+                className={`flex w-full items-start justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+                  p.lapNumber === currentLap
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-card hover:border-primary/50"
+                }`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lap</span>
+                    <span className="tabular text-lg font-bold leading-none">{p.lapNumber}</span>
+                    <span className="text-xs text-muted-foreground">/ {totalLaps}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {p.items.map((it) => (
+                      <span
+                        key={it.id}
+                        className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                      >
+                        {it.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 };
