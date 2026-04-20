@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Athlete } from "@/lib/types";
 import { useRaceStore } from "@/lib/store";
@@ -18,7 +18,10 @@ interface AthleteCardProps {
 
 const AthleteCard = ({ athlete, onEdit, onDelete }: AthleteCardProps) => {
   const allLaps = useRaceStore((s) => s.laps);
-  const laps = allLaps.filter((l) => l.athleteId === athlete.id).sort((a, b) => a.lapNumber - b.lapNumber);
+  const laps = useMemo(
+    () => allLaps.filter((l) => l.athleteId === athlete.id).sort((a, b) => a.lapNumber - b.lapNumber),
+    [allLaps, athlete.id]
+  );
   const planFor = useRaceStore((s) => s.planFor);
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const navigate = useNavigate();
