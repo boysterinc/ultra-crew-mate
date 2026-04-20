@@ -184,9 +184,9 @@ const NutritionMatrix = () => {
                 <col key={c} style={{ width: 72 }} />
               ))}
             </colgroup>
-            <thead className="sticky top-[64px] z-20 bg-background">
+            <thead className="bg-background">
               <tr>
-                <th className="sticky left-0 z-30 bg-background px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="sticky left-0 z-10 bg-background px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Lap
                 </th>
                 {columns.map((c) => (
