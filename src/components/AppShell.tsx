@@ -10,6 +10,7 @@ interface AppShellProps {
 
 const AppShell = ({ title, action, children, wide = false }: AppShellProps) => {
   const maxW = wide ? "max-w-7xl" : "max-w-md";
+  const mainPad = wide ? "px-2 sm:px-4" : "px-4";
   return (
     <div className="min-h-screen bg-background">
       <header
@@ -24,7 +25,7 @@ const AppShell = ({ title, action, children, wide = false }: AppShellProps) => {
           {action}
         </div>
       </header>
-      <main className={`mx-auto ${maxW} px-4 pt-4 safe-bottom animate-fade-in`}>{children}</main>
+      <main className={`mx-auto ${maxW} ${mainPad} pt-4 safe-bottom animate-fade-in`}>{children}</main>
       <BottomNav />
     </div>
   );
