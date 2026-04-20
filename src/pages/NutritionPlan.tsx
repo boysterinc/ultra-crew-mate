@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AppShell from "@/components/AppShell";
 import { useRaceStore, newId } from "@/lib/store";
 import {
@@ -10,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Copy, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { Plus, Trash2, Copy, ChevronLeft, ChevronRight, Pencil, Table2 } from "lucide-react";
 import { totalLapsFor } from "@/lib/race";
 import {
   Dialog,
@@ -33,6 +34,7 @@ const NutritionPlan = () => {
   const planFor = useRaceStore((s) => s.planFor);
   const setPlan = useRaceStore((s) => s.setPlan);
   const duplicate = useRaceStore((s) => s.duplicatePlanToRange);
+  const navigate = useNavigate();
 
   const athlete = athletes.find((a) => a.id === selectedId) ?? athletes[0] ?? null;
   const totalLaps = athlete ? totalLapsFor(athlete) : 0;
@@ -124,6 +126,14 @@ const NutritionPlan = () => {
           </Button>
         </div>
       </div>
+
+      <Button
+        variant="default"
+        className="mt-4 w-full gap-2"
+        onClick={() => navigate("/nutrition/edit")}
+      >
+        <Table2 className="h-4 w-4" /> Edit full plan as table
+      </Button>
 
       <section className="mt-6">
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
