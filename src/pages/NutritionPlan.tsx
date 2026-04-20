@@ -11,20 +11,9 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Copy, ChevronLeft, ChevronRight, Pencil, Table2 } from "lucide-react";
+import { Plus, Trash2, ChevronLeft, ChevronRight, Pencil, Table2 } from "lucide-react";
 import { totalLapsFor } from "@/lib/race";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-
-const QUICK_ITEMS = ["Gel", "Water", "Electrolytes", "Banana", "Bar", "Salt cap", "Coke"];
 
 const NutritionPlan = () => {
   const athletes = useRaceStore((s) => s.athletes);
@@ -33,16 +22,12 @@ const NutritionPlan = () => {
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const planFor = useRaceStore((s) => s.planFor);
   const setPlan = useRaceStore((s) => s.setPlan);
-  const duplicate = useRaceStore((s) => s.duplicatePlanToRange);
   const navigate = useNavigate();
 
   const athlete = athletes.find((a) => a.id === selectedId) ?? athletes[0] ?? null;
   const totalLaps = athlete ? totalLapsFor(athlete) : 0;
   const [lapNumber, setLapNumber] = useState(1);
   const [newItem, setNewItem] = useState("");
-  const [dupOpen, setDupOpen] = useState(false);
-  const [dupStart, setDupStart] = useState("");
-  const [dupEnd, setDupEnd] = useState("");
 
   const plan = useMemo(
     () => (athlete ? planFor(athlete.id, lapNumber) : undefined),
@@ -69,18 +54,6 @@ const NutritionPlan = () => {
 
   const removeItem = (id: string) => {
     setPlan(athlete.id, lapNumber, items.filter((i) => i.id !== id));
-  };
-
-  const onDuplicate = () => {
-    const s = parseInt(dupStart, 10);
-    const e = parseInt(dupEnd, 10);
-    if (isNaN(s) || isNaN(e) || s < 1 || e > totalLaps || s > e) {
-      toast.error(`Enter a range between 1 and ${totalLaps}`);
-      return;
-    }
-    duplicate(athlete.id, lapNumber, s, e);
-    toast.success(`Duplicated lap ${lapNumber} to laps ${s}–${e}`);
-    setDupOpen(false);
   };
 
   return (
