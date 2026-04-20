@@ -24,6 +24,8 @@ const AthleteCard = ({ athlete, onEdit, onDelete }: AthleteCardProps) => {
     [allLaps, athlete.id]
   );
   const planFor = useRaceStore((s) => s.planFor);
+  const logFor = useRaceStore((s) => s.logFor);
+  const toggleLogItem = useRaceStore((s) => s.toggleLogItem);
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const navigate = useNavigate();
 
