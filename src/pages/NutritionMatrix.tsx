@@ -202,7 +202,7 @@ const NutritionMatrix = () => {
                           const allOn = Array.from({ length: totalLaps }, (_, i) => matrix[i + 1]?.[c]).every(Boolean);
                           fillCol(c, !allOn);
                         }}
-                        className="block w-full break-words text-center text-[11px] font-semibold leading-tight text-foreground hover:text-primary"
+                        className="block w-full break-all text-center text-[11px] font-semibold leading-tight text-foreground hover:text-primary"
                         title="Toggle column"
                       >
                         {c}
