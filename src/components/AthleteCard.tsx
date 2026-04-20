@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Athlete } from "@/lib/types";
 import { useRaceStore } from "@/lib/store";
@@ -6,9 +6,10 @@ import { totalLapsFor, distanceCovered, avgRecentLapTime, nextEta } from "@/lib/
 import { formatDuration, formatPace, formatShortClock, formatDistance } from "@/lib/format";
 import CheckpointButton from "./CheckpointButton";
 import { Progress } from "@/components/ui/progress";
-import { ChevronRight, Trash2, Pencil } from "lucide-react";
+import { ChevronRight, Trash2, Pencil, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface AthleteCardProps {
   athlete: Athlete;
@@ -42,8 +43,24 @@ const AthleteCard = ({ athlete, onEdit, onDelete }: AthleteCardProps) => {
   const progressPct = Math.min(100, (distance / athlete.targetDistance) * 100);
 
   const msToEta = eta ? eta - Date.now() : 0;
-  const isUrgent = !!eta && !finished && msToEta < 60_000 && msToEta > -120_000;
+  const alertMs = (athlete.alertMinutes ?? 0) * 60_000;
+  const alertActive = !!eta && !finished && alertMs > 0 && msToEta <= alertMs && msToEta > -120_000;
+  const isUrgent = alertActive || (!!eta && !finished && msToEta < 60_000 && msToEta > -120_000);
   const isOverdue = !!eta && !finished && msToEta < -10_000;
+
+  // Fire a one-time alert per upcoming lap when crossing the threshold
+  const alertedLapRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!alertActive) return;
+    if (alertedLapRef.current === lapsDone) return;
+    alertedLapRef.current = lapsDone;
+    toast.warning(`${athlete.name} arriving in ~${Math.max(0, Math.round(msToEta / 60000))} min`, {
+      description: `Lap ${lapsDone + 1} of ${totalLaps}`,
+    });
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate?.([200, 100, 200]);
+    }
+  }, [alertActive, lapsDone, athlete.name, msToEta, totalLaps]);
 
   const nextLapNumber = lapsDone + 1;
   const nextPlan = planFor(athlete.id, nextLapNumber);
@@ -66,9 +83,16 @@ const AthleteCard = ({ athlete, onEdit, onDelete }: AthleteCardProps) => {
       <header className="flex items-start justify-between gap-2 px-5 pt-4">
         <button onClick={goDetail} className="flex-1 text-left">
           <h2 className="text-lg font-bold leading-tight">{athlete.name}</h2>
-          <p className="text-xs text-muted-foreground tabular">
-            Lap <span className="text-foreground font-semibold">{lapsDone}</span> / {totalLaps}
-            {finished && <span className="ml-2 rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-success">Finished</span>}
+          <p className="text-xs text-muted-foreground tabular flex items-center gap-2 flex-wrap">
+            <span>
+              Lap <span className="text-foreground font-semibold">{lapsDone}</span> / {totalLaps}
+            </span>
+            {athlete.alertMinutes > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider">
+                <Bell className="h-3 w-3" /> {athlete.alertMinutes}m
+              </span>
+            )}
+            {finished && <span className="ml-1 rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-success">Finished</span>}
           </p>
         </button>
         <div className="flex gap-1">

@@ -29,6 +29,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   const [lapDistance, setLapDistance] = useState("");
   const [targetDistance, setTargetDistance] = useState("");
   const [unit, setUnit] = useState<DistanceUnit>("km");
+  const [alertMinutes, setAlertMinutes] = useState("3");
 
   useEffect(() => {
     if (open) {
@@ -36,13 +37,15 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       setLapDistance(athlete ? String(athlete.lapDistance) : "");
       setTargetDistance(athlete ? String(athlete.targetDistance) : "");
       setUnit(athlete?.unit ?? "km");
+      setAlertMinutes(String(athlete?.alertMinutes ?? 3));
     }
   }, [open, athlete]);
 
   const lapDistanceNum = parseFloat(lapDistance) || 0;
   const targetDistanceNum = parseFloat(targetDistance) || 0;
+  const alertMinutesNum = Math.max(0, parseFloat(alertMinutes) || 0);
   const previewLaps = lapDistanceNum > 0 && targetDistanceNum > 0
-    ? totalLapsFor({ id: "", name: "", lapDistance: lapDistanceNum, targetDistance: targetDistanceNum, unit, createdAt: 0 })
+    ? totalLapsFor({ id: "", name: "", lapDistance: lapDistanceNum, targetDistance: targetDistanceNum, unit, alertMinutes: 0, createdAt: 0 })
     : 0;
 
   const valid = name.trim() && lapDistanceNum > 0 && targetDistanceNum > 0;
@@ -54,6 +57,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       lapDistance: lapDistanceNum,
       targetDistance: targetDistanceNum,
       unit,
+      alertMinutes: alertMinutesNum,
     };
     if (athlete) {
       updateAthlete(athlete.id, payload);
@@ -108,6 +112,19 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
                 placeholder="100"
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="alert">Alert before ETA (minutes)</Label>
+            <Input
+              id="alert"
+              inputMode="decimal"
+              value={alertMinutes}
+              onChange={(e) => setAlertMinutes(e.target.value)}
+              placeholder="3"
+            />
+            <p className="text-xs text-muted-foreground">
+              Notify when predicted arrival is within this many minutes. Set to 0 to disable.
+            </p>
           </div>
           {previewLaps > 0 && (
             <div className="rounded-xl bg-secondary/60 p-3 text-sm">
