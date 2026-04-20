@@ -11,6 +11,7 @@ interface RaceState {
   logs: NutritionLog[];
   settings: Settings;
   selectedAthleteId: string | null;
+  nutritionItems: string[]; // global shared catalog used by all athletes
 
   // athletes
   addAthlete: (a: Omit<Athlete, "id" | "createdAt">) => string;
@@ -30,6 +31,10 @@ interface RaceState {
   planFor: (athleteId: string, lapNumber: number) => NutritionPlan | undefined;
   logFor: (athleteId: string, lapNumber: number) => NutritionLog | undefined;
 
+  // shared nutrition catalog
+  addNutritionItem: (label: string) => void;
+  removeNutritionItem: (label: string) => void;
+
   // settings
   setDoubleTapMinutes: (m: number) => void;
 }
@@ -43,6 +48,25 @@ export const useRaceStore = create<RaceState>()(
       logs: [],
       settings: { doubleTapThresholdMinutes: 3 },
       selectedAthleteId: null,
+      nutritionItems: ["Gel", "Water", "Electrolytes", "Banana", "Bar", "Salt cap", "Coke"],
+
+      addNutritionItem: (label) => {
+        const trimmed = label.trim();
+        if (!trimmed) return;
+        set((s) =>
+          s.nutritionItems.includes(trimmed)
+            ? s
+            : { nutritionItems: [...s.nutritionItems, trimmed] }
+        );
+      },
+      removeNutritionItem: (label) =>
+        set((s) => ({
+          nutritionItems: s.nutritionItems.filter((x) => x !== label),
+          plans: s.plans.map((p) => ({
+            ...p,
+            items: p.items.filter((it) => it.label !== label),
+          })),
+        })),
 
       addAthlete: (a) => {
         const athlete: Athlete = { ...a, id: uid(), createdAt: Date.now() };

@@ -16,8 +16,6 @@ import { Plus, X, Save, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const DEFAULT_ITEMS = ["Gel", "Water", "Electrolytes", "Banana", "Bar", "Salt cap", "Coke"];
-
 const NutritionMatrix = () => {
   const navigate = useNavigate();
   const athletes = useRaceStore((s) => s.athletes);
@@ -25,21 +23,16 @@ const NutritionMatrix = () => {
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const allPlans = useRaceStore((s) => s.plans);
   const setPlan = useRaceStore((s) => s.setPlan);
+  const nutritionItems = useRaceStore((s) => s.nutritionItems);
+  const addNutritionItem = useRaceStore((s) => s.addNutritionItem);
+  const removeNutritionItem = useRaceStore((s) => s.removeNutritionItem);
 
   const athlete = athletes.find((a) => a.id === selectedId) ?? athletes[0] ?? null;
   const totalLaps = athlete ? totalLapsFor(athlete) : 0;
 
-  // Column definitions: union of existing labels for this athlete + defaults
-  const initialColumns = useMemo(() => {
-    if (!athlete) return [] as string[];
-    const set = new Set<string>(DEFAULT_ITEMS);
-    allPlans
-      .filter((p) => p.athleteId === athlete.id)
-      .forEach((p) => p.items.forEach((it) => set.add(it.label)));
-    return Array.from(set);
-  }, [athlete, allPlans]);
+  // Shared catalog drives columns for every athlete
+  const columns = nutritionItems;
 
-  const [columns, setColumns] = useState<string[]>([]);
   // matrix[lapNumber][label] = boolean
   const [matrix, setMatrix] = useState<Record<number, Record<string, boolean>>>({});
   const [newCol, setNewCol] = useState("");
@@ -57,19 +50,18 @@ const NutritionMatrix = () => {
 
   useEffect(() => {
     if (!athlete) return;
-    setColumns(initialColumns);
     const m: Record<number, Record<string, boolean>> = {};
     for (let n = 1; n <= totalLaps; n++) {
       const plan = allPlans.find((p) => p.athleteId === athlete.id && p.lapNumber === n);
       const row: Record<string, boolean> = {};
-      initialColumns.forEach((c) => {
+      columns.forEach((c) => {
         row[c] = !!plan?.items.find((it) => it.label === c);
       });
       m[n] = row;
     }
     setMatrix(m);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [athlete?.id, totalLaps, planSignature]);
+  }, [athlete?.id, totalLaps, planSignature, columns.join("|")]);
 
   if (!athlete) {
     return (
@@ -95,7 +87,7 @@ const NutritionMatrix = () => {
       toast.error("That item already exists");
       return;
     }
-    setColumns((c) => [...c, trimmed]);
+    addNutritionItem(trimmed);
     setMatrix((prev) => {
       const next = { ...prev };
       for (let n = 1; n <= totalLaps; n++) {
@@ -107,7 +99,7 @@ const NutritionMatrix = () => {
   };
 
   const removeColumn = (col: string) => {
-    setColumns((c) => c.filter((x) => x !== col));
+    removeNutritionItem(col);
     setMatrix((prev) => {
       const next: typeof prev = {};
       Object.entries(prev).forEach(([k, row]) => {
