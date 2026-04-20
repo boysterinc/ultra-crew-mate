@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Athlete } from "@/lib/types";
 import { useRaceStore } from "@/lib/store";
@@ -6,9 +6,10 @@ import { totalLapsFor, distanceCovered, avgRecentLapTime, nextEta } from "@/lib/
 import { formatDuration, formatPace, formatShortClock, formatDistance } from "@/lib/format";
 import CheckpointButton from "./CheckpointButton";
 import { Progress } from "@/components/ui/progress";
-import { ChevronRight, Trash2, Pencil } from "lucide-react";
+import { ChevronRight, Trash2, Pencil, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface AthleteCardProps {
   athlete: Athlete;
