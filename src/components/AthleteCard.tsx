@@ -83,44 +83,44 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
     >
       {isUrgent && <div className="absolute inset-x-0 top-0 h-1 gradient-urgent animate-pulse-urgent" />}
 
-      <header className={cn("flex items-start justify-between gap-2", compact ? "px-3 pt-3" : "px-5 pt-4")}>
+      <header className={cn("flex items-start justify-between gap-1", compact ? "px-2.5 pt-2.5" : "px-5 pt-4")}>
         <button onClick={goDetail} className="flex-1 text-left min-w-0">
-          <h2 className={cn("font-bold leading-tight truncate", compact ? "text-sm" : "text-lg")}>{athlete.name}</h2>
-          <p className="text-xs text-muted-foreground tabular flex items-center gap-2 flex-wrap">
+          <h2 className={cn("font-bold leading-tight truncate", compact ? "text-[13px]" : "text-lg")}>{athlete.name}</h2>
+          <p className={cn("text-muted-foreground tabular flex items-center gap-1.5 flex-wrap", compact ? "text-[10px]" : "text-xs")}>
             <span>
-              Lap <span className="text-foreground font-semibold">{lapsDone}</span> / {totalLaps}
+              <span className="text-foreground font-semibold">{lapsDone}</span>/{totalLaps}
             </span>
             {athlete.alertMinutes > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider">
-                <Bell className="h-3 w-3" /> {athlete.alertMinutes}m
+              <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-wider">
+                <Bell className="h-2.5 w-2.5" /> {athlete.alertMinutes}m
               </span>
             )}
-            {finished && <span className="ml-1 rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-success">Finished</span>}
+            {finished && <span className="rounded-full bg-success/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-success">Done</span>}
           </p>
         </button>
-        <div className="flex gap-1 shrink-0">
-          <Button variant="ghost" size="icon" className={cn("text-muted-foreground", compact ? "h-7 w-7" : "h-8 w-8")} onClick={onEdit}>
-            <Pencil className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+        <div className="flex gap-0.5 shrink-0">
+          <Button variant="ghost" size="icon" className={cn("text-muted-foreground", compact ? "h-6 w-6" : "h-8 w-8")} onClick={onEdit}>
+            <Pencil className={compact ? "h-3 w-3" : "h-4 w-4"} />
           </Button>
-          <Button variant="ghost" size="icon" className={cn("text-muted-foreground hover:text-destructive", compact ? "h-7 w-7" : "h-8 w-8")} onClick={onDelete}>
-            <Trash2 className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+          <Button variant="ghost" size="icon" className={cn("text-muted-foreground hover:text-destructive", compact ? "h-6 w-6" : "h-8 w-8")} onClick={onDelete}>
+            <Trash2 className={compact ? "h-3 w-3" : "h-4 w-4"} />
           </Button>
         </div>
       </header>
 
-      <div className={cn(compact ? "px-3 pt-2" : "px-5 pt-3")}>
-        <Progress value={progressPct} className="h-1.5" />
-        <div className="mt-1 flex justify-between text-[11px] text-muted-foreground tabular">
+      <div className={cn(compact ? "px-2.5 pt-1.5" : "px-5 pt-3")}>
+        <Progress value={progressPct} className={compact ? "h-1" : "h-1.5"} />
+        <div className={cn("mt-1 flex justify-between text-muted-foreground tabular", compact ? "text-[9px]" : "text-[11px]")}>
           <span>{formatDistance(distance, athlete.unit)}</span>
           <span>{formatDistance(athlete.targetDistance, athlete.unit)}</span>
         </div>
       </div>
 
-      <dl className={cn("grid grid-cols-3 gap-2 text-center", compact ? "px-3 pt-2" : "px-5 pt-4")}>
-        <Stat label="Last lap" value={last && last.lapTime > 0 ? formatDuration(last.lapTime) : "—"} compact={compact} />
-        <Stat label="Avg pace" value={avg > 0 ? formatPace(avg / athlete.lapDistance, athlete.unit) : "—"} compact={compact} />
+      <dl className={cn("grid grid-cols-3 text-center", compact ? "gap-1 px-2.5 pt-1.5" : "gap-2 px-5 pt-4")}>
+        <Stat label={compact ? "Last" : "Last lap"} value={last && last.lapTime > 0 ? formatDuration(last.lapTime) : "—"} compact={compact} />
+        <Stat label={compact ? "Pace" : "Avg pace"} value={avg > 0 ? formatPace(avg / athlete.lapDistance, athlete.unit) : "—"} compact={compact} />
         <Stat
-          label={isOverdue ? "ETA (late)" : "Next ETA"}
+          label={isOverdue ? (compact ? "Late" : "ETA (late)") : (compact ? "ETA" : "Next ETA")}
           value={eta && !finished ? formatShortClock(eta) : "—"}
           tone={isOverdue ? "destructive" : isUrgent ? "warning" : "default"}
           compact={compact}
@@ -128,16 +128,16 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
       </dl>
 
       {nextPlan && nextPlan.items.length > 0 && !finished && (
-        <div className={cn("rounded-xl bg-secondary/80", compact ? "mx-3 mt-2 px-2 py-2" : "mx-5 mt-4 px-3 py-2.5")}>
+        <div className={cn("rounded-lg bg-secondary/80", compact ? "mx-2.5 mt-1.5 px-2 py-1.5" : "mx-5 mt-4 px-3 py-2.5")}>
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Lap {nextLapNumber} nutrition
+            <p className={cn("font-semibold uppercase tracking-wider text-muted-foreground", compact ? "text-[9px]" : "text-[10px]")}>
+              Lap {nextLapNumber}
             </p>
             <button onClick={goDetail} className="text-muted-foreground hover:text-foreground">
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className={compact ? "h-3 w-3" : "h-4 w-4"} />
             </button>
           </div>
-          <div className={cn("mt-2 flex flex-wrap", compact ? "gap-1" : "gap-1.5")}>
+          <div className={cn("mt-1 flex flex-wrap", compact ? "gap-1" : "gap-1.5")}>
             {nextPlan.items.map((it) => {
               const log = logFor(athlete.id, nextLapNumber);
               const done = !!log?.completedItemIds.includes(it.id);
@@ -150,7 +150,7 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
                   }}
                   className={cn(
                     "rounded-full border font-medium transition-colors",
-                    compact ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs",
+                    compact ? "px-1.5 py-0.5 text-[10px] leading-tight" : "px-2.5 py-0.5 text-xs",
                     done
                       ? "border-primary bg-primary text-primary-foreground line-through opacity-70"
                       : "border-border bg-card text-foreground hover:border-primary/60"
@@ -164,9 +164,9 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
         </div>
       )}
 
-      <div className={cn("mt-auto", compact ? "p-3 pt-3" : "p-5 pt-4")}>
+      <div className={cn("mt-auto", compact ? "p-2.5 pt-2" : "p-5 pt-4")}>
         {finished ? (
-          <div className={cn("flex items-center justify-center rounded-2xl border border-success/40 bg-success/10 text-success font-bold uppercase tracking-wider", compact ? "h-12 text-xs" : "h-20")}>
+          <div className={cn("flex items-center justify-center rounded-xl border border-success/40 bg-success/10 text-success font-bold uppercase tracking-wider", compact ? "h-10 text-[10px]" : "h-20")}>
             Race complete
           </div>
         ) : (
@@ -178,12 +178,12 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
 };
 
 const Stat = ({ label, value, tone = "default", compact = false }: { label: string; value: string; tone?: "default" | "warning" | "destructive"; compact?: boolean }) => (
-  <div>
-    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+  <div className="min-w-0">
+    <p className={cn("font-semibold uppercase tracking-wider text-muted-foreground truncate", compact ? "text-[9px]" : "text-[10px]")}>{label}</p>
     <p
       className={cn(
-        "tabular font-bold leading-tight",
-        compact ? "text-sm" : "text-base",
+        "tabular font-bold leading-tight truncate",
+        compact ? "text-[12px]" : "text-base",
         tone === "warning" && "text-warning",
         tone === "destructive" && "text-destructive"
       )}

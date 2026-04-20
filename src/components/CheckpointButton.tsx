@@ -58,14 +58,14 @@ const CheckpointButton = ({ athlete, lastTimestamp, size = "md" }: CheckpointBut
       <button
         onClick={onClick}
         className={cn(
-          "group relative w-full select-none rounded-2xl gradient-primary font-bold uppercase tracking-wider text-primary-foreground shadow-glow transition-transform active:scale-[0.97]",
-          size === "lg" ? "h-24 text-2xl" : size === "sm" ? "h-12 text-sm" : "h-20 text-xl",
+          "group relative w-full select-none rounded-xl gradient-primary font-bold uppercase tracking-wider text-primary-foreground shadow-glow transition-transform active:scale-[0.97]",
+          size === "lg" ? "h-24 text-2xl" : size === "sm" ? "h-10 text-[11px] tracking-wide" : "h-20 text-xl",
           pressed && "ring-4 ring-primary-glow/60"
         )}
       >
-        <span className="flex items-center justify-center gap-2">
-          <Zap className={size === "sm" ? "h-4 w-4" : "h-6 w-6"} strokeWidth={2.5} />
-          Checkpoint
+        <span className={cn("flex items-center justify-center", size === "sm" ? "gap-1" : "gap-2")}>
+          <Zap className={size === "sm" ? "h-3.5 w-3.5" : "h-6 w-6"} strokeWidth={2.5} />
+          {size === "sm" ? "Lap" : "Checkpoint"}
         </span>
       </button>
 
