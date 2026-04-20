@@ -91,7 +91,7 @@ const Index = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {athletes.map((a) => (
+          {sortedAthletes.map((a) => (
             <AthleteCard
               key={a.id}
               athlete={a}
