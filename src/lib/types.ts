@@ -6,6 +6,7 @@ export interface Athlete {
   lapDistance: number;
   unit: DistanceUnit;
   targetDistance: number;
+  alertMinutes: number; // notify this many minutes before predicted ETA; 0 disables
   createdAt: number;
 }
 
