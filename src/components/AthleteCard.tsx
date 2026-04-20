@@ -43,8 +43,24 @@ const AthleteCard = ({ athlete, onEdit, onDelete }: AthleteCardProps) => {
   const progressPct = Math.min(100, (distance / athlete.targetDistance) * 100);
 
   const msToEta = eta ? eta - Date.now() : 0;
-  const isUrgent = !!eta && !finished && msToEta < 60_000 && msToEta > -120_000;
+  const alertMs = (athlete.alertMinutes ?? 0) * 60_000;
+  const alertActive = !!eta && !finished && alertMs > 0 && msToEta <= alertMs && msToEta > -120_000;
+  const isUrgent = alertActive || (!!eta && !finished && msToEta < 60_000 && msToEta > -120_000);
   const isOverdue = !!eta && !finished && msToEta < -10_000;
+
+  // Fire a one-time alert per upcoming lap when crossing the threshold
+  const alertedLapRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!alertActive) return;
+    if (alertedLapRef.current === lapsDone) return;
+    alertedLapRef.current = lapsDone;
+    toast.warning(`${athlete.name} arriving in ~${Math.max(0, Math.round(msToEta / 60000))} min`, {
+      description: `Lap ${lapsDone + 1} of ${totalLaps}`,
+    });
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate?.([200, 100, 200]);
+    }
+  }, [alertActive, lapsDone, athlete.name, msToEta, totalLaps]);
 
   const nextLapNumber = lapsDone + 1;
   const nextPlan = planFor(athlete.id, nextLapNumber);
