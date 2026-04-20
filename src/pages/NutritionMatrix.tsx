@@ -175,14 +175,20 @@ const NutritionMatrix = () => {
       {/* Matrix */}
       <div className="mt-4 -mx-4 overflow-x-auto">
         <div className="px-4 pb-2">
-          <table className="min-w-full border-separate border-spacing-1 text-xs">
-            <thead>
+          <table className="min-w-full table-fixed border-separate border-spacing-1 text-xs">
+            <colgroup>
+              <col style={{ width: 44 }} />
+              {columns.map((c) => (
+                <col key={c} style={{ width: 72 }} />
+              ))}
+            </colgroup>
+            <thead className="sticky top-[64px] z-20 bg-background">
               <tr>
-                <th className="sticky left-0 z-10 bg-background px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="sticky left-0 z-30 bg-background px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Lap
                 </th>
                 {columns.map((c) => (
-                  <th key={c} className="px-1 py-2 align-bottom">
+                  <th key={c} className="bg-background px-1 py-2 align-bottom">
                     <div className="flex flex-col items-center gap-1">
                       <button
                         onClick={() => removeColumn(c)}
@@ -196,7 +202,7 @@ const NutritionMatrix = () => {
                           const allOn = Array.from({ length: totalLaps }, (_, i) => matrix[i + 1]?.[c]).every(Boolean);
                           fillCol(c, !allOn);
                         }}
-                        className="whitespace-nowrap text-[11px] font-semibold text-foreground hover:text-primary"
+                        className="block w-full break-words text-center text-[11px] font-semibold leading-tight text-foreground hover:text-primary"
                         title="Toggle column"
                       >
                         {c}
@@ -219,7 +225,7 @@ const NutritionMatrix = () => {
                         <button
                           onClick={() => toggleCell(lap, c)}
                           className={cn(
-                            "h-9 w-full min-w-[56px] rounded-md border text-[11px] font-medium transition-colors",
+                            "h-9 w-full rounded-md border text-[11px] font-medium transition-colors",
                             on
                               ? "border-primary bg-primary text-primary-foreground shadow-glow"
                               : "border-border bg-card text-muted-foreground hover:border-primary/50"
