@@ -113,6 +113,19 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
               />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="alert">Alert before ETA (minutes)</Label>
+            <Input
+              id="alert"
+              inputMode="decimal"
+              value={alertMinutes}
+              onChange={(e) => setAlertMinutes(e.target.value)}
+              placeholder="3"
+            />
+            <p className="text-xs text-muted-foreground">
+              Notify when predicted arrival is within this many minutes. Set to 0 to disable.
+            </p>
+          </div>
           {previewLaps > 0 && (
             <div className="rounded-xl bg-secondary/60 p-3 text-sm">
               <span className="text-muted-foreground">Total laps:</span>{" "}
