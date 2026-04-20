@@ -16,8 +16,6 @@ import { Plus, X, Save, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const DEFAULT_ITEMS = ["Gel", "Water", "Electrolytes", "Banana", "Bar", "Salt cap", "Coke"];
-
 const NutritionMatrix = () => {
   const navigate = useNavigate();
   const athletes = useRaceStore((s) => s.athletes);
@@ -25,21 +23,16 @@ const NutritionMatrix = () => {
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const allPlans = useRaceStore((s) => s.plans);
   const setPlan = useRaceStore((s) => s.setPlan);
+  const nutritionItems = useRaceStore((s) => s.nutritionItems);
+  const addNutritionItem = useRaceStore((s) => s.addNutritionItem);
+  const removeNutritionItem = useRaceStore((s) => s.removeNutritionItem);
 
   const athlete = athletes.find((a) => a.id === selectedId) ?? athletes[0] ?? null;
   const totalLaps = athlete ? totalLapsFor(athlete) : 0;
 
-  // Column definitions: union of existing labels for this athlete + defaults
-  const initialColumns = useMemo(() => {
-    if (!athlete) return [] as string[];
-    const set = new Set<string>(DEFAULT_ITEMS);
-    allPlans
-      .filter((p) => p.athleteId === athlete.id)
-      .forEach((p) => p.items.forEach((it) => set.add(it.label)));
-    return Array.from(set);
-  }, [athlete, allPlans]);
+  // Shared catalog drives columns for every athlete
+  const columns = nutritionItems;
 
-  const [columns, setColumns] = useState<string[]>([]);
   // matrix[lapNumber][label] = boolean
   const [matrix, setMatrix] = useState<Record<number, Record<string, boolean>>>({});
   const [newCol, setNewCol] = useState("");
