@@ -24,6 +24,8 @@ const AthleteCard = ({ athlete, onEdit, onDelete }: AthleteCardProps) => {
     [allLaps, athlete.id]
   );
   const planFor = useRaceStore((s) => s.planFor);
+  const logFor = useRaceStore((s) => s.logFor);
+  const toggleLogItem = useRaceStore((s) => s.toggleLogItem);
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const navigate = useNavigate();
 
@@ -124,21 +126,39 @@ const AthleteCard = ({ athlete, onEdit, onDelete }: AthleteCardProps) => {
       </dl>
 
       {nextPlan && nextPlan.items.length > 0 && !finished && (
-        <button
-          onClick={goDetail}
-          className="mx-5 mt-4 flex w-[calc(100%-2.5rem)] items-center justify-between rounded-xl bg-secondary/80 px-3 py-2 text-left"
-        >
-          <div className="min-w-0">
+        <div className="mx-5 mt-4 rounded-xl bg-secondary/80 px-3 py-2.5">
+          <div className="flex items-center justify-between">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Lap {nextLapNumber} nutrition
             </p>
-            <p className="truncate text-sm font-medium">
-              {nextPlan.items.slice(0, 3).map((i) => i.label).join(" • ")}
-              {nextPlan.items.length > 3 && ` +${nextPlan.items.length - 3}`}
-            </p>
+            <button onClick={goDetail} className="text-muted-foreground hover:text-foreground">
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
-          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </button>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {nextPlan.items.map((it) => {
+              const log = logFor(athlete.id, nextLapNumber);
+              const done = !!log?.completedItemIds.includes(it.id);
+              return (
+                <button
+                  key={it.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleLogItem(athlete.id, nextLapNumber, it.id);
+                  }}
+                  className={cn(
+                    "rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
+                    done
+                      ? "border-primary bg-primary text-primary-foreground line-through opacity-70"
+                      : "border-border bg-card text-foreground hover:border-primary/60"
+                  )}
+                >
+                  {it.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       <div className="p-5 pt-4">
