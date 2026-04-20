@@ -55,10 +55,17 @@ const Index = () => {
   const visibleCount = Math.min(8, sortedAthletes.length);
   const slotCount = Math.max(2, visibleCount + (visibleCount % 2));
   const placeholders = slotCount - visibleCount;
-  // Columns: 2 athletes => 2 cols; 3-4 => 2 cols; 5-6 => 3 cols; 7-8 => 4 cols
+  // Mobile-first: always show in pairs. 2 cols up to 6 athletes, 4 cols when 7-8 (very tight)
+  // On larger screens widen out for breathing room.
   const cols =
-    slotCount <= 4 ? "sm:grid-cols-2" : slotCount <= 6 ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4";
-  const compact = slotCount >= 4;
+    slotCount <= 4
+      ? "grid-cols-2"
+      : slotCount <= 6
+      ? "grid-cols-2 lg:grid-cols-3"
+      : "grid-cols-2 md:grid-cols-4";
+  // Compact whenever we render in a 2+ column grid (i.e. always now that ≥2 athletes)
+  const compact = slotCount >= 2;
+  const ultraCompact = slotCount >= 6;
 
   return (
     <AppShell
