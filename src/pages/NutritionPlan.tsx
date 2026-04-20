@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Copy, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Copy, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { totalLapsFor } from "@/lib/race";
 import {
   Dialog,
