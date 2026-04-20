@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AppShell from "@/components/AppShell";
 import { useRaceStore, newId } from "@/lib/store";
 import {
@@ -10,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Copy, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { Plus, Trash2, Copy, ChevronLeft, ChevronRight, Pencil, Table2 } from "lucide-react";
 import { totalLapsFor } from "@/lib/race";
 import {
   Dialog,
