@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Plus, Activity } from "lucide-react";
@@ -7,6 +7,7 @@ import AthleteFormDialog from "@/components/AthleteFormDialog";
 import SettingsButton from "@/components/SettingsButton";
 import { useRaceStore } from "@/lib/store";
 import { Athlete } from "@/lib/types";
+import { nextEta, totalLapsFor } from "@/lib/race";
 import {
   AlertDialog,
   AlertDialogAction,
