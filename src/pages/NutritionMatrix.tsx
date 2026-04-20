@@ -225,7 +225,7 @@ const NutritionMatrix = () => {
                         <button
                           onClick={() => toggleCell(lap, c)}
                           className={cn(
-                            "h-9 w-full min-w-[56px] rounded-md border text-[11px] font-medium transition-colors",
+                            "h-9 w-full rounded-md border text-[11px] font-medium transition-colors",
                             on
                               ? "border-primary bg-primary text-primary-foreground shadow-glow"
                               : "border-border bg-card text-muted-foreground hover:border-primary/50"
