@@ -11,6 +11,7 @@ interface RaceState {
   logs: NutritionLog[];
   settings: Settings;
   selectedAthleteId: string | null;
+  nutritionItems: string[]; // global shared catalog used by all athletes
 
   // athletes
   addAthlete: (a: Omit<Athlete, "id" | "createdAt">) => string;
@@ -29,6 +30,10 @@ interface RaceState {
   toggleLogItem: (athleteId: string, lapNumber: number, itemId: string) => void;
   planFor: (athleteId: string, lapNumber: number) => NutritionPlan | undefined;
   logFor: (athleteId: string, lapNumber: number) => NutritionLog | undefined;
+
+  // shared nutrition catalog
+  addNutritionItem: (label: string) => void;
+  removeNutritionItem: (label: string) => void;
 
   // settings
   setDoubleTapMinutes: (m: number) => void;
