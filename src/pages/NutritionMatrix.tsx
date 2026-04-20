@@ -44,7 +44,17 @@ const NutritionMatrix = () => {
   const [matrix, setMatrix] = useState<Record<number, Record<string, boolean>>>({});
   const [newCol, setNewCol] = useState("");
 
-  // Hydrate when athlete changes
+  // Re-hydrate when athlete, totalLaps, or stored plans change
+  const planSignature = useMemo(
+    () =>
+      allPlans
+        .filter((p) => athlete && p.athleteId === athlete.id)
+        .map((p) => `${p.lapNumber}:${p.items.map((i) => i.label).sort().join(",")}`)
+        .sort()
+        .join("|"),
+    [allPlans, athlete]
+  );
+
   useEffect(() => {
     if (!athlete) return;
     setColumns(initialColumns);
@@ -59,7 +69,7 @@ const NutritionMatrix = () => {
     }
     setMatrix(m);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [athlete?.id, totalLaps]);
+  }, [athlete?.id, totalLaps, planSignature]);
 
   if (!athlete) {
     return (
