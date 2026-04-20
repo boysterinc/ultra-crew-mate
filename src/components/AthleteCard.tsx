@@ -83,9 +83,16 @@ const AthleteCard = ({ athlete, onEdit, onDelete }: AthleteCardProps) => {
       <header className="flex items-start justify-between gap-2 px-5 pt-4">
         <button onClick={goDetail} className="flex-1 text-left">
           <h2 className="text-lg font-bold leading-tight">{athlete.name}</h2>
-          <p className="text-xs text-muted-foreground tabular">
-            Lap <span className="text-foreground font-semibold">{lapsDone}</span> / {totalLaps}
-            {finished && <span className="ml-2 rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-success">Finished</span>}
+          <p className="text-xs text-muted-foreground tabular flex items-center gap-2 flex-wrap">
+            <span>
+              Lap <span className="text-foreground font-semibold">{lapsDone}</span> / {totalLaps}
+            </span>
+            {athlete.alertMinutes > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider">
+                <Bell className="h-3 w-3" /> {athlete.alertMinutes}m
+              </span>
+            )}
+            {finished && <span className="ml-1 rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-success">Finished</span>}
           </p>
         </button>
         <div className="flex gap-1">
