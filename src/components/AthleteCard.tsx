@@ -76,16 +76,16 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
   return (
     <article
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-border gradient-card shadow-card transition-all",
+        "relative overflow-hidden rounded-2xl border border-border gradient-card shadow-card transition-all flex flex-col",
         isUrgent && "border-warning/60 shadow-urgent",
         isOverdue && "border-destructive/70"
       )}
     >
       {isUrgent && <div className="absolute inset-x-0 top-0 h-1 gradient-urgent animate-pulse-urgent" />}
 
-      <header className="flex items-start justify-between gap-2 px-5 pt-4">
-        <button onClick={goDetail} className="flex-1 text-left">
-          <h2 className="text-lg font-bold leading-tight">{athlete.name}</h2>
+      <header className={cn("flex items-start justify-between gap-2", compact ? "px-3 pt-3" : "px-5 pt-4")}>
+        <button onClick={goDetail} className="flex-1 text-left min-w-0">
+          <h2 className={cn("font-bold leading-tight truncate", compact ? "text-sm" : "text-lg")}>{athlete.name}</h2>
           <p className="text-xs text-muted-foreground tabular flex items-center gap-2 flex-wrap">
             <span>
               Lap <span className="text-foreground font-semibold">{lapsDone}</span> / {totalLaps}
@@ -98,17 +98,17 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
             {finished && <span className="ml-1 rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-success">Finished</span>}
           </p>
         </button>
-        <div className="flex gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={onEdit}>
-            <Pencil className="h-4 w-4" />
+        <div className="flex gap-1 shrink-0">
+          <Button variant="ghost" size="icon" className={cn("text-muted-foreground", compact ? "h-7 w-7" : "h-8 w-8")} onClick={onEdit}>
+            <Pencil className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={onDelete}>
-            <Trash2 className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className={cn("text-muted-foreground hover:text-destructive", compact ? "h-7 w-7" : "h-8 w-8")} onClick={onDelete}>
+            <Trash2 className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
           </Button>
         </div>
       </header>
 
-      <div className="px-5 pt-3">
+      <div className={cn(compact ? "px-3 pt-2" : "px-5 pt-3")}>
         <Progress value={progressPct} className="h-1.5" />
         <div className="mt-1 flex justify-between text-[11px] text-muted-foreground tabular">
           <span>{formatDistance(distance, athlete.unit)}</span>
@@ -116,18 +116,19 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
         </div>
       </div>
 
-      <dl className="grid grid-cols-3 gap-2 px-5 pt-4 text-center">
-        <Stat label="Last lap" value={last && last.lapTime > 0 ? formatDuration(last.lapTime) : "—"} />
-        <Stat label="Avg pace" value={avg > 0 ? formatPace(avg / athlete.lapDistance, athlete.unit) : "—"} />
+      <dl className={cn("grid grid-cols-3 gap-2 text-center", compact ? "px-3 pt-2" : "px-5 pt-4")}>
+        <Stat label="Last lap" value={last && last.lapTime > 0 ? formatDuration(last.lapTime) : "—"} compact={compact} />
+        <Stat label="Avg pace" value={avg > 0 ? formatPace(avg / athlete.lapDistance, athlete.unit) : "—"} compact={compact} />
         <Stat
           label={isOverdue ? "ETA (late)" : "Next ETA"}
           value={eta && !finished ? formatShortClock(eta) : "—"}
           tone={isOverdue ? "destructive" : isUrgent ? "warning" : "default"}
+          compact={compact}
         />
       </dl>
 
       {nextPlan && nextPlan.items.length > 0 && !finished && (
-        <div className="mx-5 mt-4 rounded-xl bg-secondary/80 px-3 py-2.5">
+        <div className={cn("rounded-xl bg-secondary/80", compact ? "mx-3 mt-2 px-2 py-2" : "mx-5 mt-4 px-3 py-2.5")}>
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Lap {nextLapNumber} nutrition
@@ -136,7 +137,7 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className={cn("mt-2 flex flex-wrap", compact ? "gap-1" : "gap-1.5")}>
             {nextPlan.items.map((it) => {
               const log = logFor(athlete.id, nextLapNumber);
               const done = !!log?.completedItemIds.includes(it.id);
@@ -148,7 +149,8 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
                     toggleLogItem(athlete.id, nextLapNumber, it.id);
                   }}
                   className={cn(
-                    "rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
+                    "rounded-full border font-medium transition-colors",
+                    compact ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs",
                     done
                       ? "border-primary bg-primary text-primary-foreground line-through opacity-70"
                       : "border-border bg-card text-foreground hover:border-primary/60"
@@ -162,25 +164,26 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
         </div>
       )}
 
-      <div className="p-5 pt-4">
+      <div className={cn("mt-auto", compact ? "p-3 pt-3" : "p-5 pt-4")}>
         {finished ? (
-          <div className="flex h-20 items-center justify-center rounded-2xl border border-success/40 bg-success/10 text-success font-bold uppercase tracking-wider">
+          <div className={cn("flex items-center justify-center rounded-2xl border border-success/40 bg-success/10 text-success font-bold uppercase tracking-wider", compact ? "h-12 text-xs" : "h-20")}>
             Race complete
           </div>
         ) : (
-          <CheckpointButton athlete={athlete} lastTimestamp={last?.timestamp} />
+          <CheckpointButton athlete={athlete} lastTimestamp={last?.timestamp} size={compact ? "sm" : "md"} />
         )}
       </div>
     </article>
   );
 };
 
-const Stat = ({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "warning" | "destructive" }) => (
+const Stat = ({ label, value, tone = "default", compact = false }: { label: string; value: string; tone?: "default" | "warning" | "destructive"; compact?: boolean }) => (
   <div>
     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
     <p
       className={cn(
-        "tabular text-base font-bold leading-tight",
+        "tabular font-bold leading-tight",
+        compact ? "text-sm" : "text-base",
         tone === "warning" && "text-warning",
         tone === "destructive" && "text-destructive"
       )}
