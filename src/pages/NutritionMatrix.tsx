@@ -50,19 +50,18 @@ const NutritionMatrix = () => {
 
   useEffect(() => {
     if (!athlete) return;
-    setColumns(initialColumns);
     const m: Record<number, Record<string, boolean>> = {};
     for (let n = 1; n <= totalLaps; n++) {
       const plan = allPlans.find((p) => p.athleteId === athlete.id && p.lapNumber === n);
       const row: Record<string, boolean> = {};
-      initialColumns.forEach((c) => {
+      columns.forEach((c) => {
         row[c] = !!plan?.items.find((it) => it.label === c);
       });
       m[n] = row;
     }
     setMatrix(m);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [athlete?.id, totalLaps, planSignature]);
+  }, [athlete?.id, totalLaps, planSignature, columns.join("|")]);
 
   if (!athlete) {
     return (
