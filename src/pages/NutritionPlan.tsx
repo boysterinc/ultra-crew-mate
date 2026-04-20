@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Copy, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Copy, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { totalLapsFor } from "@/lib/race";
 import {
   Dialog,
@@ -27,6 +27,7 @@ const QUICK_ITEMS = ["Gel", "Water", "Electrolytes", "Banana", "Bar", "Salt cap"
 
 const NutritionPlan = () => {
   const athletes = useRaceStore((s) => s.athletes);
+  const allPlans = useRaceStore((s) => s.plans);
   const selectedId = useRaceStore((s) => s.selectedAthleteId);
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const planFor = useRaceStore((s) => s.planFor);
@@ -189,6 +190,14 @@ const NutritionPlan = () => {
         <Copy className="h-4 w-4" /> Duplicate to other laps
       </Button>
 
+      <PlanOverview
+        athleteId={athlete.id}
+        totalLaps={totalLaps}
+        plans={allPlans}
+        currentLap={lapNumber}
+        onJump={(n) => setLapNumber(n)}
+      />
+
       <Dialog open={dupOpen} onOpenChange={setDupOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -214,6 +223,66 @@ const NutritionPlan = () => {
         </DialogContent>
       </Dialog>
     </AppShell>
+  );
+};
+
+interface PlanOverviewProps {
+  athleteId: string;
+  totalLaps: number;
+  plans: ReturnType<typeof useRaceStore.getState>["plans"];
+  currentLap: number;
+  onJump: (lap: number) => void;
+}
+
+const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump }: PlanOverviewProps) => {
+  const athletePlans = plans
+    .filter((p) => p.athleteId === athleteId && p.items.length > 0 && p.lapNumber <= totalLaps)
+    .sort((a, b) => a.lapNumber - b.lapNumber);
+
+  return (
+    <section className="mt-8">
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        All planned laps ({athletePlans.length})
+      </h2>
+      {athletePlans.length === 0 ? (
+        <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+          No plans yet. Add items above to start building the race nutrition plan.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {athletePlans.map((p) => (
+            <button
+              key={p.lapNumber}
+              onClick={() => onJump(p.lapNumber)}
+              className={`flex w-full items-start justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+                p.lapNumber === currentLap
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-card hover:border-primary/50"
+              }`}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lap</span>
+                  <span className="tabular text-lg font-bold leading-none">{p.lapNumber}</span>
+                  <span className="text-xs text-muted-foreground">/ {totalLaps}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {p.items.map((it) => (
+                    <span
+                      key={it.id}
+                      className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                    >
+                      {it.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
   );
 };
 
