@@ -15,9 +15,10 @@ interface AthleteCardProps {
   athlete: Athlete;
   onEdit: () => void;
   onDelete: () => void;
+  compact?: boolean;
 }
 
-const AthleteCard = ({ athlete, onEdit, onDelete }: AthleteCardProps) => {
+const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCardProps) => {
   const allLaps = useRaceStore((s) => s.laps);
   const laps = useMemo(
     () => allLaps.filter((l) => l.athleteId === athlete.id).sort((a, b) => a.lapNumber - b.lapNumber),
