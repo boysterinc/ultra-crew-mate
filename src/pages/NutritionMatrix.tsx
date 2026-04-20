@@ -87,7 +87,7 @@ const NutritionMatrix = () => {
       toast.error("That item already exists");
       return;
     }
-    setColumns((c) => [...c, trimmed]);
+    addNutritionItem(trimmed);
     setMatrix((prev) => {
       const next = { ...prev };
       for (let n = 1; n <= totalLaps; n++) {
@@ -99,7 +99,7 @@ const NutritionMatrix = () => {
   };
 
   const removeColumn = (col: string) => {
-    setColumns((c) => c.filter((x) => x !== col));
+    removeNutritionItem(col);
     setMatrix((prev) => {
       const next: typeof prev = {};
       Object.entries(prev).forEach(([k, row]) => {
