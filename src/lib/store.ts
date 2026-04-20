@@ -48,6 +48,25 @@ export const useRaceStore = create<RaceState>()(
       logs: [],
       settings: { doubleTapThresholdMinutes: 3 },
       selectedAthleteId: null,
+      nutritionItems: ["Gel", "Water", "Electrolytes", "Banana", "Bar", "Salt cap", "Coke"],
+
+      addNutritionItem: (label) => {
+        const trimmed = label.trim();
+        if (!trimmed) return;
+        set((s) =>
+          s.nutritionItems.includes(trimmed)
+            ? s
+            : { nutritionItems: [...s.nutritionItems, trimmed] }
+        );
+      },
+      removeNutritionItem: (label) =>
+        set((s) => ({
+          nutritionItems: s.nutritionItems.filter((x) => x !== label),
+          plans: s.plans.map((p) => ({
+            ...p,
+            items: p.items.filter((it) => it.label !== label),
+          })),
+        })),
 
       addAthlete: (a) => {
         const athlete: Athlete = { ...a, id: uid(), createdAt: Date.now() };
