@@ -19,7 +19,7 @@ import { formatDuration } from "@/lib/format";
 interface CheckpointButtonProps {
   athlete: Athlete;
   lastTimestamp?: number;
-  size?: "lg" | "md";
+  size?: "lg" | "md" | "sm";
 }
 
 const CheckpointButton = ({ athlete, lastTimestamp, size = "md" }: CheckpointButtonProps) => {
