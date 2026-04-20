@@ -190,6 +190,14 @@ const NutritionPlan = () => {
         <Copy className="h-4 w-4" /> Duplicate to other laps
       </Button>
 
+      <PlanOverview
+        athleteId={athlete.id}
+        totalLaps={totalLaps}
+        plans={allPlans}
+        currentLap={lapNumber}
+        onJump={(n) => setLapNumber(n)}
+      />
+
       <Dialog open={dupOpen} onOpenChange={setDupOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
