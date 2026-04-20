@@ -17,7 +17,8 @@ interface AthleteCardProps {
 }
 
 const AthleteCard = ({ athlete, onEdit, onDelete }: AthleteCardProps) => {
-  const laps = useRaceStore((s) => s.laps.filter((l) => l.athleteId === athlete.id).sort((a, b) => a.lapNumber - b.lapNumber));
+  const allLaps = useRaceStore((s) => s.laps);
+  const laps = allLaps.filter((l) => l.athleteId === athlete.id).sort((a, b) => a.lapNumber - b.lapNumber);
   const planFor = useRaceStore((s) => s.planFor);
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const navigate = useNavigate();
