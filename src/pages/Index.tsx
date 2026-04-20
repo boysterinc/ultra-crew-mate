@@ -107,7 +107,7 @@ const Index = () => {
           </Button>
         </div>
       ) : (
-        <div className={`grid grid-cols-1 ${cols} gap-3`}>
+        <div className={`grid ${cols} gap-2 sm:gap-3`}>
           {sortedAthletes.slice(0, 8).map((a) => (
             <AthleteCard
               key={a.id}
