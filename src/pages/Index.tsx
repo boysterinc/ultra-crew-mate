@@ -51,8 +51,18 @@ const Index = () => {
     return [...athletes].sort((a, b) => score(a) - score(b));
   }, [athletes, allLaps]);
 
+  // Pair-based grid: round up to even count, max 8 visible per page
+  const visibleCount = Math.min(8, sortedAthletes.length);
+  const slotCount = Math.max(2, visibleCount + (visibleCount % 2));
+  const placeholders = slotCount - visibleCount;
+  // Columns: 2 athletes => 2 cols; 3-4 => 2 cols; 5-6 => 3 cols; 7-8 => 4 cols
+  const cols =
+    slotCount <= 4 ? "sm:grid-cols-2" : slotCount <= 6 ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4";
+  const compact = slotCount >= 4;
+
   return (
     <AppShell
+      wide
       title="Dashboard"
       action={
         <div className="flex items-center gap-1">
@@ -90,16 +100,24 @@ const Index = () => {
           </Button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {sortedAthletes.map((a) => (
+        <div className={`grid grid-cols-1 ${cols} gap-3`}>
+          {sortedAthletes.slice(0, 8).map((a) => (
             <AthleteCard
               key={a.id}
               athlete={a}
+              compact={compact}
               onEdit={() => {
                 setEditing(a);
                 setFormOpen(true);
               }}
               onDelete={() => setConfirmDelete(a)}
+            />
+          ))}
+          {Array.from({ length: placeholders }).map((_, i) => (
+            <div
+              key={`placeholder-${i}`}
+              className="rounded-2xl border border-dashed border-border/50 bg-card/30"
+              aria-hidden
             />
           ))}
         </div>
