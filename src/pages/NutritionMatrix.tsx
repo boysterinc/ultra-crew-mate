@@ -5,13 +5,7 @@ import { useRaceStore, newId } from "@/lib/store";
 import { totalLapsFor } from "@/lib/race";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import AthleteSwitcher from "@/components/AthleteSwitcher";
 import { Plus, X, Save, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -133,23 +127,8 @@ const NutritionMatrix = () => {
   };
 
   return (
-    <AppShell
-      title="Edit nutrition"
-      action={
-        athletes.length > 1 ? (
-          <Select value={athlete.id} onValueChange={(v) => selectAthlete(v)}>
-            <SelectTrigger className="h-9 w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {athletes.map((a) => (
-                <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : undefined
-      }
-    >
+    <AppShell title="Edit nutrition">
+      <AthleteSwitcher athletes={athletes} selectedId={athlete.id} onSelect={selectAthlete} />
       <div className="rounded-2xl border border-border gradient-card p-4 shadow-card">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {athlete.name} · {totalLaps} laps

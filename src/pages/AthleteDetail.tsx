@@ -4,13 +4,7 @@ import { useRaceStore } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Trash2, ArrowRight } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import AthleteSwitcher from "@/components/AthleteSwitcher";
 import {
   Table,
   TableBody,
@@ -64,23 +58,8 @@ const AthleteDetail = () => {
   const distance = distanceCovered(athlete, laps.length);
 
   return (
-    <AppShell
-      title={athlete.name}
-      action={
-        athletes.length > 1 ? (
-          <Select value={athlete.id} onValueChange={(v) => selectAthlete(v)}>
-            <SelectTrigger className="h-9 w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {athletes.map((a) => (
-                <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : undefined
-      }
-    >
+    <AppShell title={athlete.name}>
+      <AthleteSwitcher athletes={athletes} selectedId={athlete.id} onSelect={selectAthlete} />
       <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border gradient-card p-4 text-center shadow-card">
         <Stat label="Laps" value={`${laps.length}/${totalLaps}`} />
         <Stat label="Distance" value={formatDistance(distance, athlete.unit)} />
