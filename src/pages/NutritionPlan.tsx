@@ -2,13 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppShell from "@/components/AppShell";
 import { useRaceStore, newId } from "@/lib/store";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import AthleteSwitcher from "@/components/AthleteSwitcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, ChevronLeft, ChevronRight, Pencil, Table2 } from "lucide-react";
@@ -57,23 +51,12 @@ const NutritionPlan = () => {
   };
 
   return (
-    <AppShell
-      title="Nutrition"
-      action={
-        athletes.length > 1 ? (
-          <Select value={athlete.id} onValueChange={(v) => { selectAthlete(v); setLapNumber(1); }}>
-            <SelectTrigger className="h-9 w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {athletes.map((a) => (
-                <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : undefined
-      }
-    >
+    <AppShell title="Nutrition">
+      <AthleteSwitcher
+        athletes={athletes}
+        selectedId={athlete.id}
+        onSelect={(v) => { selectAthlete(v); setLapNumber(1); }}
+      />
       <div className="rounded-2xl border border-border gradient-card p-4 shadow-card">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Planning lap</p>
         <div className="mt-2 flex items-center justify-between">
