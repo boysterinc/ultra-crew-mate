@@ -7,6 +7,7 @@ export interface Athlete {
   unit: DistanceUnit;
   targetDistance: number;
   alertMinutes: number; // notify this many minutes before predicted ETA; 0 disables
+  photoUrl?: string;
   createdAt: number;
 }
 

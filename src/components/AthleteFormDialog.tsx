@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Athlete, DistanceUnit } from "@/lib/types";
 import { useRaceStore } from "@/lib/store";
 import { totalLapsFor } from "@/lib/race";
@@ -14,6 +14,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Upload, X } from "lucide-react";
+
+const downscaleImage = (file: File, max = 128): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const size = Math.min(max, Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("no ctx"));
+        // cover-crop to square
+        const scale = size / Math.min(img.width, img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = reject;
+      img.src = reader.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 interface AthleteFormDialogProps {
   open: boolean;
@@ -30,6 +58,8 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   const [targetDistance, setTargetDistance] = useState("");
   const [unit, setUnit] = useState<DistanceUnit>("km");
   const [alertMinutes, setAlertMinutes] = useState("3");
+  const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -38,8 +68,19 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       setTargetDistance(athlete ? String(athlete.targetDistance) : "");
       setUnit(athlete?.unit ?? "km");
       setAlertMinutes(String(athlete?.alertMinutes ?? 3));
+      setPhotoUrl(athlete?.photoUrl);
     }
   }, [open, athlete]);
+
+  const onPickPhoto = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const url = await downscaleImage(file, 128);
+      setPhotoUrl(url);
+    } catch {
+      // ignore
+    }
+  };
 
   const lapDistanceNum = parseFloat(lapDistance) || 0;
   const targetDistanceNum = parseFloat(targetDistance) || 0;
@@ -58,6 +99,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       targetDistance: targetDistanceNum,
       unit,
       alertMinutes: alertMinutesNum,
+      photoUrl,
     };
     if (athlete) {
       updateAthlete(athlete.id, payload);
@@ -75,6 +117,32 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
           <DialogDescription>Set the athlete name, loop distance, and total target.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Photo</Label>
+            <div className="flex items-center gap-3">
+              <Avatar className="h-14 w-14">
+                {photoUrl && <AvatarImage src={photoUrl} alt={name || "athlete"} />}
+                <AvatarFallback>
+                  {(name.trim()[0] || "?").toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => onPickPhoto(e.target.files?.[0])}
+              />
+              <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()} className="gap-1.5">
+                <Upload className="h-4 w-4" /> {photoUrl ? "Change" : "Upload"}
+              </Button>
+              {photoUrl && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setPhotoUrl(undefined)} className="gap-1.5">
+                  <X className="h-4 w-4" /> Remove
+                </Button>
+              )}
+            </div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sam Carter" autoFocus />

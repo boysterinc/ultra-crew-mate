@@ -8,6 +8,7 @@ import CheckpointButton from "./CheckpointButton";
 import { Progress } from "@/components/ui/progress";
 import { ChevronRight, Trash2, Pencil, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -84,7 +85,14 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
       {isUrgent && <div className="absolute inset-x-0 top-0 h-1 gradient-urgent animate-pulse-urgent" />}
 
       <header className={cn("flex items-start justify-between gap-1", compact ? "px-2.5 pt-2.5" : "px-5 pt-4")}>
-        <button onClick={goDetail} className="flex-1 text-left min-w-0">
+        <button onClick={goDetail} className={cn("flex-1 text-left min-w-0 flex items-center", compact ? "gap-1.5" : "gap-2")}>
+          <Avatar className={cn("shrink-0", compact ? "h-5 w-5" : "h-7 w-7")}>
+            {athlete.photoUrl && <AvatarImage src={athlete.photoUrl} alt={athlete.name} />}
+            <AvatarFallback className={compact ? "text-[9px]" : "text-[11px]"}>
+              {(athlete.name.trim()[0] || "?").toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
           <h2 className={cn("font-bold leading-tight truncate", compact ? "text-[13px]" : "text-lg")}>{athlete.name}</h2>
           <p className={cn("text-muted-foreground tabular flex items-center gap-1.5 flex-wrap", compact ? "text-[10px]" : "text-xs")}>
             <span>
@@ -97,6 +105,7 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
             )}
             {finished && <span className="rounded-full bg-success/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-success">Done</span>}
           </p>
+          </div>
         </button>
         <div className="flex gap-0.5 shrink-0">
           <Button variant="ghost" size="icon" className={cn("text-muted-foreground", compact ? "h-6 w-6" : "h-8 w-8")} onClick={onEdit}>
