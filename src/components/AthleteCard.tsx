@@ -30,6 +30,8 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
   const logFor = useRaceStore((s) => s.logFor);
   const toggleLogItem = useRaceStore((s) => s.toggleLogItem);
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
+  const events = useRaceStore((s) => s.events);
+  const event: RaceEvent | undefined = athlete.eventId ? events.find((e) => e.id === athlete.eventId) : undefined;
   const navigate = useNavigate();
 
   const [, force] = useState(0);
@@ -109,6 +111,20 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
           </div>
         </button>
         <div className="flex gap-0.5 shrink-0">
+          {dragHandleProps && (
+            <button
+              type="button"
+              {...dragHandleProps}
+              aria-label="Drag to reorder"
+              className={cn(
+                "flex items-center justify-center text-muted-foreground hover:text-foreground touch-none cursor-grab active:cursor-grabbing rounded-md",
+                compact ? "h-6 w-5" : "h-8 w-6"
+              )}
+              onClick={(e) => e.preventDefault()}
+            >
+              <GripVertical className={compact ? "h-3 w-3" : "h-4 w-4"} />
+            </button>
+          )}
           <Button variant="ghost" size="icon" className={cn("text-muted-foreground", compact ? "h-6 w-6" : "h-8 w-8")} onClick={onEdit}>
             <Pencil className={compact ? "h-3 w-3" : "h-4 w-4"} />
           </Button>
@@ -117,6 +133,10 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
           </Button>
         </div>
       </header>
+
+      {event && (athlete.goalDistanceKm || athlete.goalDurationMinutes) && (
+        <GoalLine athlete={athlete} event={event} avgLapSec={avg} lapsDone={lapsDone} compact={compact} />
+      )}
 
       <div className={cn(compact ? "px-2.5 pt-1.5" : "px-5 pt-3")}>
         <Progress value={progressPct} className={compact ? "h-1" : "h-1.5"} />
