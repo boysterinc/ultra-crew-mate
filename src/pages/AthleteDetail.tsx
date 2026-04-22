@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { useRaceStore } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Trash2, ArrowRight } from "lucide-react";
+import { Trash2, ArrowRight, Plus, X } from "lucide-react";
 import AthleteSwitcher from "@/components/AthleteSwitcher";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -17,6 +19,7 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianG
 import { formatDuration, formatPace, formatClock, formatDistance } from "@/lib/format";
 import { totalLapsFor, distanceCovered } from "@/lib/race";
 import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 
 const AthleteDetail = () => {
   const athletes = useRaceStore((s) => s.athletes);
@@ -24,9 +27,14 @@ const AthleteDetail = () => {
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const allLaps = useRaceStore((s) => s.laps);
   const deleteLap = useRaceStore((s) => s.deleteLap);
+  const addManualLap = useRaceStore((s) => s.addManualLap);
   const planFor = useRaceStore((s) => s.planFor);
   const logFor = useRaceStore((s) => s.logFor);
   const toggleLogItem = useRaceStore((s) => s.toggleLogItem);
+
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualDate, setManualDate] = useState("");
+  const [manualTime, setManualTime] = useState("");
   const navigate = useNavigate();
 
   const athlete = athletes.find((a) => a.id === selectedId) ?? athletes[0] ?? null;
