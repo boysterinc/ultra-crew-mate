@@ -257,8 +257,23 @@ export const useRaceStore = create<RaceState>()(
       setDoubleTapMinutes: (m) => set((s) => ({ settings: { ...s.settings, doubleTapThresholdMinutes: m } })),
     }),
     {
-      name: "ultracrew-store-v1",
-      storage: createJSONStorage(() => localStorage),
+      name: STORAGE_KEY,
+      version: 1,
+      storage: createJSONStorage(() => createDebouncedStorage(150)),
+      partialize: (state) => ({
+        athletes: state.athletes,
+        laps: state.laps,
+        plans: state.plans,
+        logs: state.logs,
+        settings: state.settings,
+        selectedAthleteId: state.selectedAthleteId,
+        nutritionItems: state.nutritionItems,
+      }),
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) {
+          console.warn("[ultraCrewData] rehydrate failed, using defaults", error);
+        }
+      },
     }
   )
 );
