@@ -246,7 +246,7 @@ export const useRaceStore = create<RaceState>()(
         return inserted;
       },
 
-
+      recordLap: (athleteId) => {
         const state = get();
         const athlete = state.athletes.find((a) => a.id === athleteId);
         if (!athlete) return null;
