@@ -223,4 +223,65 @@ const Stat = ({ label, value, tone = "default", compact = false }: { label: stri
   </div>
 );
 
+const GoalLine = ({
+  athlete,
+  event,
+  avgLapSec,
+  lapsDone,
+  compact,
+}: {
+  athlete: Athlete;
+  event: RaceEvent;
+  avgLapSec: number;
+  lapsDone: number;
+  compact: boolean;
+}) => {
+  // Convert lapDistance to km for unified math (mi → km)
+  const lapKm = athlete.unit === "mi" ? athlete.lapDistance * 1.609344 : athlete.lapDistance;
+  const distanceKm = lapsDone * lapKm;
+  const paceSecPerKm = avgLapSec > 0 && lapKm > 0 ? avgLapSec / lapKm : 0;
+
+  let goalText = "";
+  let projectionText = "";
+  let onTrack: boolean | null = null;
+
+  if (event.kind === "distance" && athlete.goalDurationMinutes && event.distanceKm) {
+    const requiredPace = (athlete.goalDurationMinutes * 60) / event.distanceKm;
+    goalText = `Goal ${formatHM(athlete.goalDurationMinutes)} · need ${formatPace(requiredPace, "km")}`;
+    if (paceSecPerKm > 0) {
+      const remainingKm = Math.max(0, event.distanceKm - distanceKm);
+      const projectedSec = lapsDone > 0 ? (avgLapSec * lapsDone) + remainingKm * paceSecPerKm : remainingKm * paceSecPerKm;
+      projectionText = `ETA finish ${formatHM(projectedSec / 60)}`;
+      onTrack = paceSecPerKm <= requiredPace;
+    }
+  } else if (event.kind === "time" && athlete.goalDistanceKm && event.durationMinutes) {
+    const requiredPace = (event.durationMinutes * 60) / athlete.goalDistanceKm;
+    goalText = `Goal ${athlete.goalDistanceKm} km · need ${formatPace(requiredPace, "km")}`;
+    if (paceSecPerKm > 0) {
+      const projectedKm = (event.durationMinutes * 60) / paceSecPerKm;
+      projectionText = `Projected ${projectedKm.toFixed(1)} km`;
+      onTrack = paceSecPerKm <= requiredPace;
+    }
+  }
+
+  if (!goalText) return null;
+
+  return (
+    <div className={cn("mx-2.5 mt-1.5 rounded-md border border-border/60 bg-secondary/40 px-2 py-1", compact ? "text-[9px]" : "text-[10px] mx-5", "flex items-center justify-between gap-2 tabular")}>
+      <span className="text-muted-foreground truncate">{goalText}</span>
+      {projectionText && (
+        <span
+          className={cn(
+            "font-semibold shrink-0",
+            onTrack === true && "text-success",
+            onTrack === false && "text-warning"
+          )}
+        >
+          {projectionText}
+        </span>
+      )}
+    </div>
+  );
+};
+
 export default AthleteCard;
