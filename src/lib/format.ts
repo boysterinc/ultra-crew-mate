@@ -30,3 +30,23 @@ export function formatShortClock(ts: number): string {
 export function formatDistance(d: number, unit: "km" | "mi"): string {
   return `${d.toFixed(d >= 100 ? 0 : d >= 10 ? 1 : 2)} ${unit}`;
 }
+
+export function formatHM(totalMinutes: number): string {
+  if (!isFinite(totalMinutes) || totalMinutes <= 0) return "—";
+  const h = Math.floor(totalMinutes / 60);
+  const m = Math.round(totalMinutes % 60);
+  return `${h}h ${String(m).padStart(2, "0")}m`;
+}
+
+export function parseHM(value: string): number {
+  // Accepts "H:MM" or "H" or "H.MM"
+  if (!value) return 0;
+  const v = value.trim();
+  if (v.includes(":")) {
+    const [h, m] = v.split(":");
+    return (parseInt(h || "0", 10) || 0) * 60 + (parseInt(m || "0", 10) || 0);
+  }
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n * 60;
+}
+
