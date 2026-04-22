@@ -170,6 +170,42 @@ export const useRaceStore = create<RaceState>()(
         })),
       selectAthlete: (id) => set({ selectedAthleteId: id }),
 
+      addEvent: (e) => {
+        const id = uid();
+        set((s) => {
+          const order = s.events.length > 0 ? Math.max(...s.events.map((x) => x.order)) + 1 : 0;
+          const ev: RaceEvent = { ...e, id, order };
+          return { events: [...s.events, ev] };
+        });
+        return id;
+      },
+      updateEvent: (id, patch) =>
+        set((s) => ({ events: s.events.map((e) => (e.id === id ? { ...e, ...patch } : e)) })),
+      deleteEvent: (id) =>
+        set((s) => ({
+          events: s.events.filter((e) => e.id !== id),
+          athletes: s.athletes.map((a) =>
+            a.eventId === id ? { ...a, eventId: undefined, goalDistanceKm: undefined, goalDurationMinutes: undefined } : a
+          ),
+        })),
+      reorderEvents: (orderedIds) =>
+        set((s) => ({
+          events: s.events.map((e) => {
+            const idx = orderedIds.indexOf(e.id);
+            return idx >= 0 ? { ...e, order: idx } : e;
+          }),
+        })),
+      reorderAthletesInEvent: (eventId, orderedIds) =>
+        set((s) => ({
+          athletes: s.athletes.map((a) => {
+            const sameGroup = (a.eventId ?? null) === (eventId ?? null);
+            if (!sameGroup) return a;
+            const idx = orderedIds.indexOf(a.id);
+            return idx >= 0 ? { ...a, dashboardOrder: idx } : a;
+          }),
+        })),
+
+
       recordLap: (athleteId) => {
         const state = get();
         const athlete = state.athletes.find((a) => a.id === athleteId);
@@ -274,6 +310,7 @@ export const useRaceStore = create<RaceState>()(
         laps: state.laps,
         plans: state.plans,
         logs: state.logs,
+        events: state.events,
         settings: state.settings,
         selectedAthleteId: state.selectedAthleteId,
         nutritionItems: state.nutritionItems,
