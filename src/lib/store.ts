@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
-import { Athlete, Lap, NutritionLog, NutritionPlan, Settings } from "./types";
+import { Athlete, Lap, NutritionLog, NutritionPlan, RaceEvent, Settings } from "./types";
 
 const STORAGE_KEY = "ultraCrewData";
 
@@ -82,6 +82,7 @@ interface RaceState {
   laps: Lap[];
   plans: NutritionPlan[];
   logs: NutritionLog[];
+  events: RaceEvent[];
   settings: Settings;
   selectedAthleteId: string | null;
   nutritionItems: string[]; // global shared catalog used by all athletes
@@ -91,6 +92,13 @@ interface RaceState {
   updateAthlete: (id: string, patch: Partial<Athlete>) => void;
   deleteAthlete: (id: string) => void;
   selectAthlete: (id: string | null) => void;
+
+  // events
+  addEvent: (e: Omit<RaceEvent, "id" | "order">) => string;
+  updateEvent: (id: string, patch: Partial<RaceEvent>) => void;
+  deleteEvent: (id: string) => void;
+  reorderEvents: (orderedIds: string[]) => void;
+  reorderAthletesInEvent: (eventId: string | null, orderedIds: string[]) => void;
 
   // laps
   recordLap: (athleteId: string) => Lap | null;
@@ -119,6 +127,7 @@ export const useRaceStore = create<RaceState>()(
       laps: [],
       plans: [],
       logs: [],
+      events: [],
       settings: { doubleTapThresholdMinutes: 3 },
       selectedAthleteId: null,
       nutritionItems: ["Gel", "Water", "Electrolytes", "Banana", "Bar", "Salt cap", "Coke"],
