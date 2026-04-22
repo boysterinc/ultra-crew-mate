@@ -125,9 +125,82 @@ const AthleteDetail = () => {
       </section>
 
       <section className="mt-6">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Lap history
-        </h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Lap history
+          </h2>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="gap-1"
+            onClick={() => {
+              const now = new Date();
+              const pad = (n: number) => String(n).padStart(2, "0");
+              setManualDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+              setManualTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
+              setManualOpen((v) => !v);
+            }}
+          >
+            {manualOpen ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+            {manualOpen ? "Cancel" : "Manual lap"}
+          </Button>
+        </div>
+        {manualOpen && (
+          <div className="mb-2 rounded-2xl border border-primary/40 bg-card p-3">
+            <p className="mb-2 text-xs text-muted-foreground">
+              Add a checkpoint you forgot to tap. Lap times will be recalculated from this timestamp.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="m-date" className="text-xs">Date</Label>
+                <Input
+                  id="m-date"
+                  type="date"
+                  value={manualDate}
+                  onChange={(e) => setManualDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="m-time" className="text-xs">Time (HH:MM)</Label>
+                <Input
+                  id="m-time"
+                  type="time"
+                  step="60"
+                  value={manualTime}
+                  onChange={(e) => setManualTime(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="mt-3 flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setManualOpen(false)}>Cancel</Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (!manualDate || !manualTime) {
+                    toast.error("Pick a date and time");
+                    return;
+                  }
+                  const ts = new Date(`${manualDate}T${manualTime}`).getTime();
+                  if (!isFinite(ts)) {
+                    toast.error("Invalid date/time");
+                    return;
+                  }
+                  if (ts > Date.now() + 60_000) {
+                    toast.error("Time can't be in the future");
+                    return;
+                  }
+                  const inserted = addManualLap(athlete.id, ts);
+                  if (inserted) {
+                    toast.success(`Lap ${inserted.lapNumber} added at ${formatClock(inserted.timestamp)}`);
+                    setManualOpen(false);
+                  }
+                }}
+              >
+                Add lap
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <Table>
             <TableHeader>
