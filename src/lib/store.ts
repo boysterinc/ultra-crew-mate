@@ -93,6 +93,9 @@ interface RaceState {
   deleteAthlete: (id: string) => void;
   selectAthlete: (id: string | null) => void;
 
+  // laps (declared in laps section below too)
+  addManualLap: (athleteId: string, timestamp: number) => Lap | null;
+
   // events
   addEvent: (e: Omit<RaceEvent, "id" | "order">) => string;
   updateEvent: (id: string, patch: Partial<RaceEvent>) => void;
@@ -205,8 +208,45 @@ export const useRaceStore = create<RaceState>()(
           }),
         })),
 
+      addManualLap: (athleteId, timestamp) => {
+        const state = get();
+        const athlete = state.athletes.find((a) => a.id === athleteId);
+        if (!athlete) return null;
+        const ts = Math.min(Date.now(), Math.max(0, timestamp));
+        const newLap: Lap = {
+          id: uid(),
+          athleteId,
+          lapNumber: 0, // recomputed below
+          timestamp: ts,
+          lapTime: 0,
+          pace: 0,
+        };
+        let inserted: Lap | null = null;
+        set((s) => {
+          const all = [...s.laps, newLap].sort((a, b) => a.timestamp - b.timestamp);
+          const byAthlete: Record<string, Lap[]> = {};
+          all.forEach((l) => {
+            (byAthlete[l.athleteId] ||= []).push(l);
+          });
+          const recomputed: Lap[] = [];
+          Object.values(byAthlete).forEach((arr) => {
+            arr.sort((a, b) => a.timestamp - b.timestamp);
+            arr.forEach((l, i) => {
+              const prev = arr[i - 1];
+              const lapTime = prev ? (l.timestamp - prev.timestamp) / 1000 : 0;
+              const ath = s.athletes.find((a) => a.id === l.athleteId);
+              const pace = lapTime > 0 && ath && ath.lapDistance > 0 ? lapTime / ath.lapDistance : 0;
+              const updated = { ...l, lapNumber: i + 1, lapTime, pace };
+              if (l.id === newLap.id) inserted = updated;
+              recomputed.push(updated);
+            });
+          });
+          return { laps: recomputed };
+        });
+        return inserted;
+      },
 
-      recordLap: (athleteId) => {
+
         const state = get();
         const athlete = state.athletes.find((a) => a.id === athleteId);
         if (!athlete) return null;
