@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
-import { Athlete, Lap, NutritionLog, NutritionPlan, Settings } from "./types";
+import { Athlete, Lap, NutritionLog, NutritionPlan, RaceEvent, Settings } from "./types";
 
 const STORAGE_KEY = "ultraCrewData";
 
@@ -82,6 +82,7 @@ interface RaceState {
   laps: Lap[];
   plans: NutritionPlan[];
   logs: NutritionLog[];
+  events: RaceEvent[];
   settings: Settings;
   selectedAthleteId: string | null;
   nutritionItems: string[]; // global shared catalog used by all athletes
@@ -91,6 +92,13 @@ interface RaceState {
   updateAthlete: (id: string, patch: Partial<Athlete>) => void;
   deleteAthlete: (id: string) => void;
   selectAthlete: (id: string | null) => void;
+
+  // events
+  addEvent: (e: Omit<RaceEvent, "id" | "order">) => string;
+  updateEvent: (id: string, patch: Partial<RaceEvent>) => void;
+  deleteEvent: (id: string) => void;
+  reorderEvents: (orderedIds: string[]) => void;
+  reorderAthletesInEvent: (eventId: string | null, orderedIds: string[]) => void;
 
   // laps
   recordLap: (athleteId: string) => Lap | null;
@@ -119,6 +127,7 @@ export const useRaceStore = create<RaceState>()(
       laps: [],
       plans: [],
       logs: [],
+      events: [],
       settings: { doubleTapThresholdMinutes: 3 },
       selectedAthleteId: null,
       nutritionItems: ["Gel", "Water", "Electrolytes", "Banana", "Bar", "Salt cap", "Coke"],
@@ -160,6 +169,42 @@ export const useRaceStore = create<RaceState>()(
           selectedAthleteId: s.selectedAthleteId === id ? null : s.selectedAthleteId,
         })),
       selectAthlete: (id) => set({ selectedAthleteId: id }),
+
+      addEvent: (e) => {
+        const id = uid();
+        set((s) => {
+          const order = s.events.length > 0 ? Math.max(...s.events.map((x) => x.order)) + 1 : 0;
+          const ev: RaceEvent = { ...e, id, order };
+          return { events: [...s.events, ev] };
+        });
+        return id;
+      },
+      updateEvent: (id, patch) =>
+        set((s) => ({ events: s.events.map((e) => (e.id === id ? { ...e, ...patch } : e)) })),
+      deleteEvent: (id) =>
+        set((s) => ({
+          events: s.events.filter((e) => e.id !== id),
+          athletes: s.athletes.map((a) =>
+            a.eventId === id ? { ...a, eventId: undefined, goalDistanceKm: undefined, goalDurationMinutes: undefined } : a
+          ),
+        })),
+      reorderEvents: (orderedIds) =>
+        set((s) => ({
+          events: s.events.map((e) => {
+            const idx = orderedIds.indexOf(e.id);
+            return idx >= 0 ? { ...e, order: idx } : e;
+          }),
+        })),
+      reorderAthletesInEvent: (eventId, orderedIds) =>
+        set((s) => ({
+          athletes: s.athletes.map((a) => {
+            const sameGroup = (a.eventId ?? null) === (eventId ?? null);
+            if (!sameGroup) return a;
+            const idx = orderedIds.indexOf(a.id);
+            return idx >= 0 ? { ...a, dashboardOrder: idx } : a;
+          }),
+        })),
+
 
       recordLap: (athleteId) => {
         const state = get();
@@ -265,6 +310,7 @@ export const useRaceStore = create<RaceState>()(
         laps: state.laps,
         plans: state.plans,
         logs: state.logs,
+        events: state.events,
         settings: state.settings,
         selectedAthleteId: state.selectedAthleteId,
         nutritionItems: state.nutritionItems,

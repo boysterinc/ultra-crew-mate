@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, HTMLAttributes } from "react";
 import { useNavigate } from "react-router-dom";
-import { Athlete } from "@/lib/types";
+import { Athlete, RaceEvent } from "@/lib/types";
 import { useRaceStore } from "@/lib/store";
 import { totalLapsFor, distanceCovered, avgRecentLapTime, nextEta } from "@/lib/race";
-import { formatDuration, formatPace, formatShortClock, formatDistance } from "@/lib/format";
+import { formatDuration, formatPace, formatShortClock, formatDistance, formatHM } from "@/lib/format";
 import CheckpointButton from "./CheckpointButton";
 import { Progress } from "@/components/ui/progress";
-import { ChevronRight, Trash2, Pencil, Bell } from "lucide-react";
+import { ChevronRight, Trash2, Pencil, Bell, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -17,9 +17,10 @@ interface AthleteCardProps {
   onEdit: () => void;
   onDelete: () => void;
   compact?: boolean;
+  dragHandleProps?: HTMLAttributes<HTMLButtonElement>;
 }
 
-const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCardProps) => {
+const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandleProps }: AthleteCardProps) => {
   const allLaps = useRaceStore((s) => s.laps);
   const laps = useMemo(
     () => allLaps.filter((l) => l.athleteId === athlete.id).sort((a, b) => a.lapNumber - b.lapNumber),
@@ -29,6 +30,8 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
   const logFor = useRaceStore((s) => s.logFor);
   const toggleLogItem = useRaceStore((s) => s.toggleLogItem);
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
+  const events = useRaceStore((s) => s.events);
+  const event: RaceEvent | undefined = athlete.eventId ? events.find((e) => e.id === athlete.eventId) : undefined;
   const navigate = useNavigate();
 
   const [, force] = useState(0);
@@ -108,6 +111,20 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
           </div>
         </button>
         <div className="flex gap-0.5 shrink-0">
+          {dragHandleProps && (
+            <button
+              type="button"
+              {...dragHandleProps}
+              aria-label="Drag to reorder"
+              className={cn(
+                "flex items-center justify-center text-muted-foreground hover:text-foreground touch-none cursor-grab active:cursor-grabbing rounded-md",
+                compact ? "h-6 w-5" : "h-8 w-6"
+              )}
+              onClick={(e) => e.preventDefault()}
+            >
+              <GripVertical className={compact ? "h-3 w-3" : "h-4 w-4"} />
+            </button>
+          )}
           <Button variant="ghost" size="icon" className={cn("text-muted-foreground", compact ? "h-6 w-6" : "h-8 w-8")} onClick={onEdit}>
             <Pencil className={compact ? "h-3 w-3" : "h-4 w-4"} />
           </Button>
@@ -116,6 +133,10 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCard
           </Button>
         </div>
       </header>
+
+      {event && (athlete.goalDistanceKm || athlete.goalDurationMinutes) && (
+        <GoalLine athlete={athlete} event={event} avgLapSec={avg} lapsDone={lapsDone} compact={compact} />
+      )}
 
       <div className={cn(compact ? "px-2.5 pt-1.5" : "px-5 pt-3")}>
         <Progress value={progressPct} className={compact ? "h-1" : "h-1.5"} />
@@ -201,5 +222,66 @@ const Stat = ({ label, value, tone = "default", compact = false }: { label: stri
     </p>
   </div>
 );
+
+const GoalLine = ({
+  athlete,
+  event,
+  avgLapSec,
+  lapsDone,
+  compact,
+}: {
+  athlete: Athlete;
+  event: RaceEvent;
+  avgLapSec: number;
+  lapsDone: number;
+  compact: boolean;
+}) => {
+  // Convert lapDistance to km for unified math (mi → km)
+  const lapKm = athlete.unit === "mi" ? athlete.lapDistance * 1.609344 : athlete.lapDistance;
+  const distanceKm = lapsDone * lapKm;
+  const paceSecPerKm = avgLapSec > 0 && lapKm > 0 ? avgLapSec / lapKm : 0;
+
+  let goalText = "";
+  let projectionText = "";
+  let onTrack: boolean | null = null;
+
+  if (event.kind === "distance" && athlete.goalDurationMinutes && event.distanceKm) {
+    const requiredPace = (athlete.goalDurationMinutes * 60) / event.distanceKm;
+    goalText = `Goal ${formatHM(athlete.goalDurationMinutes)} · need ${formatPace(requiredPace, "km")}`;
+    if (paceSecPerKm > 0) {
+      const remainingKm = Math.max(0, event.distanceKm - distanceKm);
+      const projectedSec = lapsDone > 0 ? (avgLapSec * lapsDone) + remainingKm * paceSecPerKm : remainingKm * paceSecPerKm;
+      projectionText = `ETA finish ${formatHM(projectedSec / 60)}`;
+      onTrack = paceSecPerKm <= requiredPace;
+    }
+  } else if (event.kind === "time" && athlete.goalDistanceKm && event.durationMinutes) {
+    const requiredPace = (event.durationMinutes * 60) / athlete.goalDistanceKm;
+    goalText = `Goal ${athlete.goalDistanceKm} km · need ${formatPace(requiredPace, "km")}`;
+    if (paceSecPerKm > 0) {
+      const projectedKm = (event.durationMinutes * 60) / paceSecPerKm;
+      projectionText = `Projected ${projectedKm.toFixed(1)} km`;
+      onTrack = paceSecPerKm <= requiredPace;
+    }
+  }
+
+  if (!goalText) return null;
+
+  return (
+    <div className={cn("mx-2.5 mt-1.5 rounded-md border border-border/60 bg-secondary/40 px-2 py-1", compact ? "text-[9px]" : "text-[10px] mx-5", "flex items-center justify-between gap-2 tabular")}>
+      <span className="text-muted-foreground truncate">{goalText}</span>
+      {projectionText && (
+        <span
+          className={cn(
+            "font-semibold shrink-0",
+            onTrack === true && "text-success",
+            onTrack === false && "text-warning"
+          )}
+        >
+          {projectionText}
+        </span>
+      )}
+    </div>
+  );
+};
 
 export default AthleteCard;

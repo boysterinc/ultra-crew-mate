@@ -1,5 +1,16 @@
 export type DistanceUnit = "km" | "mi";
 
+export type EventKind = "distance" | "time";
+
+export interface RaceEvent {
+  id: string;
+  name: string;
+  kind: EventKind;
+  distanceKm?: number; // when kind === "distance"
+  durationMinutes?: number; // when kind === "time"
+  order: number;
+}
+
 export interface Athlete {
   id: string;
   name: string;
@@ -9,6 +20,11 @@ export interface Athlete {
   alertMinutes: number; // notify this many minutes before predicted ETA; 0 disables
   photoUrl?: string;
   createdAt: number;
+  // Event + goal (additive, optional)
+  eventId?: string;
+  goalDistanceKm?: number; // when assigned event is "time"
+  goalDurationMinutes?: number; // when assigned event is "distance"
+  dashboardOrder?: number;
 }
 
 export interface Lap {
@@ -27,7 +43,7 @@ export interface NutritionPlanItem {
 
 export interface NutritionPlan {
   athleteId: string;
-  lapNumber: number; // 1-based, plan applies to this upcoming lap
+  lapNumber: number;
   items: NutritionPlanItem[];
 }
 
