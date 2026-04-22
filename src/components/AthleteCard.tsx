@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, HTMLAttributes } from "react";
 import { useNavigate } from "react-router-dom";
-import { Athlete } from "@/lib/types";
+import { Athlete, RaceEvent } from "@/lib/types";
 import { useRaceStore } from "@/lib/store";
 import { totalLapsFor, distanceCovered, avgRecentLapTime, nextEta } from "@/lib/race";
-import { formatDuration, formatPace, formatShortClock, formatDistance } from "@/lib/format";
+import { formatDuration, formatPace, formatShortClock, formatDistance, formatHM } from "@/lib/format";
 import CheckpointButton from "./CheckpointButton";
 import { Progress } from "@/components/ui/progress";
-import { ChevronRight, Trash2, Pencil, Bell } from "lucide-react";
+import { ChevronRight, Trash2, Pencil, Bell, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -17,9 +17,10 @@ interface AthleteCardProps {
   onEdit: () => void;
   onDelete: () => void;
   compact?: boolean;
+  dragHandleProps?: HTMLAttributes<HTMLButtonElement>;
 }
 
-const AthleteCard = ({ athlete, onEdit, onDelete, compact = false }: AthleteCardProps) => {
+const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandleProps }: AthleteCardProps) => {
   const allLaps = useRaceStore((s) => s.laps);
   const laps = useMemo(
     () => allLaps.filter((l) => l.athleteId === athlete.id).sort((a, b) => a.lapNumber - b.lapNumber),
