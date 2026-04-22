@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Athlete, DistanceUnit } from "@/lib/types";
 import { useRaceStore } from "@/lib/store";
 import { totalLapsFor } from "@/lib/race";
+import { formatHM, parseHM } from "@/lib/format";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, X } from "lucide-react";
 
 const downscaleImage = (file: File, max = 128): Promise<string> =>
@@ -49,9 +51,13 @@ interface AthleteFormDialogProps {
   athlete?: Athlete | null;
 }
 
+const NONE_VALUE = "__none__";
+
 const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogProps) => {
   const addAthlete = useRaceStore((s) => s.addAthlete);
   const updateAthlete = useRaceStore((s) => s.updateAthlete);
+  const events = useRaceStore((s) => s.events);
+  const sortedEvents = useMemo(() => [...events].sort((a, b) => a.order - b.order), [events]);
 
   const [name, setName] = useState("");
   const [lapDistance, setLapDistance] = useState("");
@@ -59,6 +65,9 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   const [unit, setUnit] = useState<DistanceUnit>("km");
   const [alertMinutes, setAlertMinutes] = useState("3");
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
+  const [eventId, setEventId] = useState<string | undefined>(undefined);
+  const [goalDistanceKm, setGoalDistanceKm] = useState("");
+  const [goalHM, setGoalHM] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -69,6 +78,10 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       setUnit(athlete?.unit ?? "km");
       setAlertMinutes(String(athlete?.alertMinutes ?? 3));
       setPhotoUrl(athlete?.photoUrl);
+      setEventId(athlete?.eventId);
+      setGoalDistanceKm(athlete?.goalDistanceKm ? String(athlete.goalDistanceKm) : "");
+      const m = athlete?.goalDurationMinutes ?? 0;
+      setGoalHM(m > 0 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : "");
     }
   }, [open, athlete]);
 
@@ -89,10 +102,13 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     ? totalLapsFor({ id: "", name: "", lapDistance: lapDistanceNum, targetDistance: targetDistanceNum, unit, alertMinutes: 0, createdAt: 0 })
     : 0;
 
+  const selectedEvent = sortedEvents.find((e) => e.id === eventId);
   const valid = name.trim() && lapDistanceNum > 0 && targetDistanceNum > 0;
 
   const onSubmit = () => {
     if (!valid) return;
+    const goalDurationMinutes = selectedEvent?.kind === "distance" ? parseHM(goalHM) : undefined;
+    const goalDistance = selectedEvent?.kind === "time" ? parseFloat(goalDistanceKm) || undefined : undefined;
     const payload = {
       name: name.trim(),
       lapDistance: lapDistanceNum,
@@ -100,6 +116,9 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       unit,
       alertMinutes: alertMinutesNum,
       photoUrl,
+      eventId: eventId,
+      goalDistanceKm: goalDistance,
+      goalDurationMinutes: goalDurationMinutes && goalDurationMinutes > 0 ? goalDurationMinutes : undefined,
     };
     if (athlete) {
       updateAthlete(athlete.id, payload);
