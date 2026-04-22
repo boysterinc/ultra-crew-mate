@@ -1,6 +1,79 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
 import { Athlete, Lap, NutritionLog, NutritionPlan, Settings } from "./types";
+
+const STORAGE_KEY = "ultraCrewData";
+
+// Debounced localStorage writer — coalesces rapid state changes into a single write.
+const createDebouncedStorage = (delay = 150): StateStorage => {
+  const timers = new Map<string, ReturnType<typeof setTimeout>>();
+  const pending = new Map<string, string>();
+
+  const flush = (key: string) => {
+    const value = pending.get(key);
+    if (value === undefined) return;
+    try {
+      localStorage.setItem(key, value);
+    } catch (err) {
+      console.error("[ultraCrewData] failed to persist", err);
+    }
+    pending.delete(key);
+    timers.delete(key);
+  };
+
+  if (typeof window !== "undefined") {
+    // Make sure pending writes are flushed before the tab is closed/hidden.
+    const flushAll = () => {
+      timers.forEach((t) => clearTimeout(t));
+      Array.from(pending.keys()).forEach(flush);
+    };
+    window.addEventListener("beforeunload", flushAll);
+    window.addEventListener("pagehide", flushAll);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flushAll();
+    });
+  }
+
+  return {
+    getItem: (name) => {
+      try {
+        const raw = localStorage.getItem(name);
+        if (!raw) return null;
+        // Validate it's parseable JSON; otherwise treat as corrupted and discard.
+        JSON.parse(raw);
+        return raw;
+      } catch (err) {
+        console.warn("[ultraCrewData] corrupted data, resetting", err);
+        try {
+          localStorage.removeItem(name);
+        } catch {
+          /* ignore */
+        }
+        return null;
+      }
+    },
+    setItem: (name, value) => {
+      pending.set(name, value);
+      const existing = timers.get(name);
+      if (existing) clearTimeout(existing);
+      timers.set(
+        name,
+        setTimeout(() => flush(name), delay)
+      );
+    },
+    removeItem: (name) => {
+      const existing = timers.get(name);
+      if (existing) clearTimeout(existing);
+      timers.delete(name);
+      pending.delete(name);
+      try {
+        localStorage.removeItem(name);
+      } catch {
+        /* ignore */
+      }
+    },
+  };
+};
 
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
