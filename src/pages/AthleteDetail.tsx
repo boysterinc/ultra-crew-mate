@@ -89,9 +89,21 @@ const AthleteDetail = () => {
     );
   }
 
-  const totalLaps = totalLapsFor(athlete);
-  const distance = distanceCovered(athlete, laps.length);
   const event = athlete.eventId ? events.find((e) => e.id === athlete.eventId) : undefined;
+  const totalLaps = totalLapsFor(athlete, event);
+  const distance = distanceCovered(athlete, laps.length, event);
+
+  // Per-lap distance helpers (km offsets shown next to each lap row)
+  const lapDistsUnit = (() => {
+    if (event?.kind === "distance" && event.lapMode === "variable" && event.lapDistancesKm?.length) {
+      return event.lapDistancesKm
+        .filter((d) => d > 0)
+        .map((km) => (athlete.unit === "mi" ? km / 1.609344 : km));
+    }
+    return Array.from({ length: totalLaps }, () => athlete.lapDistance);
+  })();
+  const cumulativeAt = (lapNumber: number) =>
+    lapDistsUnit.slice(0, Math.max(0, Math.min(lapNumber, lapDistsUnit.length))).reduce((s, d) => s + d, 0);
 
   // Average lap time in minutes (for chart reference line)
   const avgLapMinutes = chartData.length > 0
