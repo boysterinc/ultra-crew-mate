@@ -44,6 +44,7 @@ const tsToTime = (ts: number) => {
 
 const AthleteDetail = () => {
   const athletes = useRaceStore((s) => s.athletes);
+  const events = useRaceStore((s) => s.events);
   const selectedId = useRaceStore((s) => s.selectedAthleteId);
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const allLaps = useRaceStore((s) => s.laps);
