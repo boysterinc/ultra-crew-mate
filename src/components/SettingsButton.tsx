@@ -33,9 +33,19 @@ type Draft = {
   distanceKm: string;
   hours: string;
   minutes: string;
+  lapMode: "fixed" | "variable";
+  lapDistancesKm: string[]; // editable per-checkpoint distances (km)
 };
 
-const emptyDraft = (): Draft => ({ name: "", kind: "distance", distanceKm: "", hours: "", minutes: "" });
+const emptyDraft = (): Draft => ({
+  name: "",
+  kind: "distance",
+  distanceKm: "",
+  hours: "",
+  minutes: "",
+  lapMode: "fixed",
+  lapDistancesKm: [""],
+});
 
 const SettingsButton = () => {
   const threshold = useRaceStore((s) => s.settings.doubleTapThresholdMinutes);
@@ -68,6 +78,11 @@ const SettingsButton = () => {
       distanceKm: e.distanceKm ? String(e.distanceKm) : "",
       hours: e.durationMinutes ? String(Math.floor(e.durationMinutes / 60)) : "",
       minutes: e.durationMinutes ? String(e.durationMinutes % 60) : "",
+      lapMode: e.lapMode === "variable" ? "variable" : "fixed",
+      lapDistancesKm:
+        e.lapMode === "variable" && e.lapDistancesKm?.length
+          ? e.lapDistancesKm.map((d) => String(d))
+          : [""],
     });
   };
 
