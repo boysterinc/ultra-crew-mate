@@ -96,13 +96,26 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   };
 
   const lapDistanceNum = parseFloat(lapDistance) || 0;
-  const targetDistanceNum = parseFloat(targetDistance) || 0;
   const alertMinutesNum = Math.max(0, parseFloat(alertMinutes) || 0);
+  const selectedEvent = sortedEvents.find((e) => e.id === eventId);
+
+  // When an event is selected, the target distance is derived from the event/goal — no separate Target field.
+  // - distance event: target = event.distanceKm (converted to athlete unit)
+  // - time event: target = goalDistanceKm (km, converted to athlete unit)
+  // - no event: user enters target manually.
+  const kmToUnit = (km: number) => (unit === "mi" ? km / 1.609344 : km);
+  let derivedTarget = 0;
+  if (selectedEvent?.kind === "distance" && selectedEvent.distanceKm) {
+    derivedTarget = kmToUnit(selectedEvent.distanceKm);
+  } else if (selectedEvent?.kind === "time") {
+    const g = parseFloat(goalDistanceKm) || 0;
+    derivedTarget = g > 0 ? kmToUnit(g) : 0;
+  }
+  const targetDistanceNum = selectedEvent ? derivedTarget : parseFloat(targetDistance) || 0;
   const previewLaps = lapDistanceNum > 0 && targetDistanceNum > 0
     ? totalLapsFor({ id: "", name: "", lapDistance: lapDistanceNum, targetDistance: targetDistanceNum, unit, alertMinutes: 0, createdAt: 0 })
     : 0;
 
-  const selectedEvent = sortedEvents.find((e) => e.id === eventId);
   const valid = name.trim() && lapDistanceNum > 0 && targetDistanceNum > 0;
 
   const onSubmit = () => {
