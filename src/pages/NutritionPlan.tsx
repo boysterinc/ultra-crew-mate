@@ -164,8 +164,8 @@ const NutritionPlan = () => {
         plans={allPlans}
         currentLap={lapNumber}
         onJump={(n) => setLapNumber(n)}
-        lapDistance={athlete.lapDistance}
         unit={athlete.unit}
+        cumulativeAt={cumulativeAt}
       />
     </AppShell>
   );
@@ -177,11 +177,11 @@ interface PlanOverviewProps {
   plans: ReturnType<typeof useRaceStore.getState>["plans"];
   currentLap: number;
   onJump: (lap: number) => void;
-  lapDistance: number;
   unit: "km" | "mi";
+  cumulativeAt: (lap: number) => number;
 }
 
-const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump, lapDistance, unit }: PlanOverviewProps) => {
+const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump, unit, cumulativeAt }: PlanOverviewProps) => {
   const nutritionItems = useRaceStore((s) => s.nutritionItems);
   const removeNutritionItem = useRaceStore((s) => s.removeNutritionItem);
 
@@ -252,7 +252,10 @@ const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump, lapDist
                     <span className="tabular text-lg font-bold leading-none">{p.lapNumber}</span>
                     <span className="text-xs text-muted-foreground">/ {totalLaps}</span>
                     <span className="text-xs text-muted-foreground tabular">
-                      ({(p.lapNumber * lapDistance).toFixed(lapDistance % 1 === 0 ? 0 : 2)} {unit})
+                      {(() => {
+                        const k = cumulativeAt(p.lapNumber);
+                        return `(${k.toFixed(k >= 100 ? 0 : k >= 10 ? 1 : 2)} ${unit})`;
+                      })()}
                     </span>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
