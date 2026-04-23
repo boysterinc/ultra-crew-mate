@@ -21,10 +21,21 @@ const NutritionPlan = () => {
   const removeNutritionItem = useRaceStore((s) => s.removeNutritionItem);
   const navigate = useNavigate();
 
+  const events = useRaceStore((s) => s.events);
   const athlete = athletes.find((a) => a.id === selectedId) ?? athletes[0] ?? null;
-  const totalLaps = athlete ? totalLapsFor(athlete) : 0;
+  const event = athlete?.eventId ? events.find((e) => e.id === athlete.eventId) : undefined;
+  const totalLaps = athlete ? totalLapsFor(athlete, event) : 0;
   const [lapNumber, setLapNumber] = useState(1);
   const [newItem, setNewItem] = useState("");
+
+  // Per-lap distance offsets (athlete unit)
+  const lapDistsUnit = athlete
+    ? (event?.kind === "distance" && event.lapMode === "variable" && event.lapDistancesKm?.length
+        ? event.lapDistancesKm.filter((d) => d > 0).map((km) => (athlete.unit === "mi" ? km / 1.609344 : km))
+        : Array.from({ length: totalLaps }, () => athlete.lapDistance))
+    : [];
+  const cumulativeAt = (n: number) =>
+    lapDistsUnit.slice(0, Math.max(0, Math.min(n, lapDistsUnit.length))).reduce((s, d) => s + d, 0);
 
   const plan = useMemo(
     () => (athlete ? planFor(athlete.id, lapNumber) : undefined),
