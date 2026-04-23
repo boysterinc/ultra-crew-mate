@@ -21,8 +21,10 @@ const NutritionMatrix = () => {
   const addNutritionItem = useRaceStore((s) => s.addNutritionItem);
   const removeNutritionItem = useRaceStore((s) => s.removeNutritionItem);
 
+  const events = useRaceStore((s) => s.events);
   const athlete = athletes.find((a) => a.id === selectedId) ?? athletes[0] ?? null;
-  const totalLaps = athlete ? totalLapsFor(athlete) : 0;
+  const event = athlete?.eventId ? events.find((e) => e.id === athlete.eventId) : undefined;
+  const totalLaps = athlete ? totalLapsFor(athlete, event) : 0;
 
   // Shared catalog drives columns for every athlete
   const columns = nutritionItems;
