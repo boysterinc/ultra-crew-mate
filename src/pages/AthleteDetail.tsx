@@ -160,9 +160,25 @@ const AthleteDetail = () => {
       </div>
 
       <section className="mt-6">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Lap times
-        </h2>
+        <div className="mb-2 flex items-end justify-between gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Lap times
+          </h2>
+          {avgLapMinutes > 0 && (
+            <div className="flex items-center gap-3 text-[11px] tabular text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block h-0.5 w-3 bg-warning" />
+                Avg {formatDuration(avgLapSec)}
+              </span>
+              {projection && (
+                <span>
+                  <span className="text-muted-foreground/80">{projection.label}:</span>{" "}
+                  <span className="font-bold text-foreground">{projection.value}</span>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
         <div className="h-48 w-full rounded-2xl border border-border bg-card p-2">
           {chartData.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -195,6 +211,15 @@ const AthleteDetail = () => {
                   formatter={(v: number) => [`${v} min`, "Lap time"]}
                   labelFormatter={(l) => `Lap ${l}`}
                 />
+                {avgLapMinutes > 0 && (
+                  <ReferenceLine
+                    y={avgLapMinutes}
+                    stroke="hsl(var(--warning))"
+                    strokeDasharray="4 4"
+                    strokeWidth={1.5}
+                    ifOverflow="extendDomain"
+                  />
+                )}
                 <Line
                   type="monotone"
                   dataKey="minutes"
