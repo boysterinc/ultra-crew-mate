@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, HTMLAttributes } from "react";
 import { useNavigate } from "react-router-dom";
 import { Athlete, RaceEvent } from "@/lib/types";
 import { useRaceStore } from "@/lib/store";
-import { totalLapsFor, distanceCovered, avgRecentLapTime, nextEta } from "@/lib/race";
+import { totalLapsFor, distanceCovered, avgRecentLapTime, nextEta, goalLapTime } from "@/lib/race";
 import { formatDuration, formatPace, formatShortClock, formatDistance, formatHM } from "@/lib/format";
 import CheckpointButton from "./CheckpointButton";
 import { Progress } from "@/components/ui/progress";
@@ -45,8 +45,11 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
   const lapsDone = laps.length;
   const finished = lapsDone >= totalLaps;
   const last = laps[laps.length - 1];
-  const avg = avgRecentLapTime(laps);
-  const eta = nextEta(laps);
+  const measuredAvg = avgRecentLapTime(laps);
+  const goalLap = goalLapTime(athlete, event?.durationMinutes, event?.distanceKm);
+  // Use measured pace once available, otherwise fall back to the goal pace.
+  const avg = measuredAvg > 0 ? measuredAvg : goalLap;
+  const eta = nextEta(laps, goalLap);
   const distance = distanceCovered(athlete, lapsDone);
   const progressPct = Math.min(100, (distance / athlete.targetDistance) * 100);
 

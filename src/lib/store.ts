@@ -95,6 +95,7 @@ interface RaceState {
 
   // laps (declared in laps section below too)
   addManualLap: (athleteId: string, timestamp: number) => Lap | null;
+  updateLapTimestamp: (lapId: string, timestamp: number) => void;
 
   // events
   addEvent: (e: Omit<RaceEvent, "id" | "order">) => string;
@@ -244,6 +245,30 @@ export const useRaceStore = create<RaceState>()(
           return { laps: recomputed };
         });
         return inserted;
+      },
+
+      updateLapTimestamp: (lapId, timestamp) => {
+        const ts = Math.min(Date.now(), Math.max(0, timestamp));
+        set((s) => {
+          if (!s.laps.some((l) => l.id === lapId)) return s;
+          const all = s.laps.map((l) => (l.id === lapId ? { ...l, timestamp: ts } : l));
+          const byAthlete: Record<string, Lap[]> = {};
+          all.forEach((l) => {
+            (byAthlete[l.athleteId] ||= []).push(l);
+          });
+          const recomputed: Lap[] = [];
+          Object.values(byAthlete).forEach((arr) => {
+            arr.sort((a, b) => a.timestamp - b.timestamp);
+            arr.forEach((l, i) => {
+              const prev = arr[i - 1];
+              const lapTime = prev ? (l.timestamp - prev.timestamp) / 1000 : 0;
+              const ath = s.athletes.find((a) => a.id === l.athleteId);
+              const pace = lapTime > 0 && ath && ath.lapDistance > 0 ? lapTime / ath.lapDistance : 0;
+              recomputed.push({ ...l, lapNumber: i + 1, lapTime, pace });
+            });
+          });
+          return { laps: recomputed };
+        });
       },
 
       recordLap: (athleteId) => {

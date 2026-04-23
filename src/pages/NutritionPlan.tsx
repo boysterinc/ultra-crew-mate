@@ -70,7 +70,12 @@ const NutritionPlan = () => {
           </Button>
           <div className="text-center">
             <p className="tabular text-4xl font-bold leading-none">{lapNumber}</p>
-            <p className="text-xs text-muted-foreground">of {totalLaps}</p>
+            <p className="text-xs text-muted-foreground">
+              of {totalLaps} ·{" "}
+              <span className="tabular">
+                ({(lapNumber * athlete.lapDistance).toFixed(athlete.lapDistance % 1 === 0 ? 0 : 2)} {athlete.unit})
+              </span>
+            </p>
           </div>
           <Button
             variant="secondary"
@@ -138,6 +143,8 @@ const NutritionPlan = () => {
         plans={allPlans}
         currentLap={lapNumber}
         onJump={(n) => setLapNumber(n)}
+        lapDistance={athlete.lapDistance}
+        unit={athlete.unit}
       />
     </AppShell>
   );
@@ -149,9 +156,11 @@ interface PlanOverviewProps {
   plans: ReturnType<typeof useRaceStore.getState>["plans"];
   currentLap: number;
   onJump: (lap: number) => void;
+  lapDistance: number;
+  unit: "km" | "mi";
 }
 
-const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump }: PlanOverviewProps) => {
+const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump, lapDistance, unit }: PlanOverviewProps) => {
   const setPlan = useRaceStore((s) => s.setPlan);
 
   const athletePlans = plans
@@ -229,6 +238,9 @@ const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump }: PlanO
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lap</span>
                     <span className="tabular text-lg font-bold leading-none">{p.lapNumber}</span>
                     <span className="text-xs text-muted-foreground">/ {totalLaps}</span>
+                    <span className="text-xs text-muted-foreground tabular">
+                      ({(p.lapNumber * lapDistance).toFixed(lapDistance % 1 === 0 ? 0 : 2)} {unit})
+                    </span>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {p.items.map((it) => (

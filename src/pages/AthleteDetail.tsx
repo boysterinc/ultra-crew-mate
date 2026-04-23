@@ -3,23 +3,44 @@ import AppShell from "@/components/AppShell";
 import { useRaceStore } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Trash2, ArrowRight, Plus, X } from "lucide-react";
+import { Trash2, ArrowRight, Plus, X, Pencil, Check } from "lucide-react";
 import AthleteSwitcher from "@/components/AthleteSwitcher";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { formatDuration, formatPace, formatClock, formatDistance } from "@/lib/format";
 import { totalLapsFor, distanceCovered } from "@/lib/race";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import type { Lap } from "@/lib/types";
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const tsToDate = (ts: number) => {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+const tsToTime = (ts: number) => {
+  const d = new Date(ts);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
 
 const AthleteDetail = () => {
   const athletes = useRaceStore((s) => s.athletes);
@@ -28,6 +49,7 @@ const AthleteDetail = () => {
   const allLaps = useRaceStore((s) => s.laps);
   const deleteLap = useRaceStore((s) => s.deleteLap);
   const addManualLap = useRaceStore((s) => s.addManualLap);
+  const updateLapTimestamp = useRaceStore((s) => s.updateLapTimestamp);
   const planFor = useRaceStore((s) => s.planFor);
   const logFor = useRaceStore((s) => s.logFor);
   const toggleLogItem = useRaceStore((s) => s.toggleLogItem);
@@ -35,6 +57,10 @@ const AthleteDetail = () => {
   const [manualOpen, setManualOpen] = useState(false);
   const [manualDate, setManualDate] = useState("");
   const [manualTime, setManualTime] = useState("");
+  const [editLap, setEditLap] = useState<Lap | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editTime, setEditTime] = useState("");
+  const [confirmDeleteLap, setConfirmDeleteLap] = useState<Lap | null>(null);
   const navigate = useNavigate();
 
   const athlete = athletes.find((a) => a.id === selectedId) ?? athletes[0] ?? null;
@@ -64,6 +90,32 @@ const AthleteDetail = () => {
 
   const totalLaps = totalLapsFor(athlete);
   const distance = distanceCovered(athlete, laps.length);
+
+  const openEdit = (l: Lap) => {
+    setEditLap(l);
+    setEditDate(tsToDate(l.timestamp));
+    setEditTime(tsToTime(l.timestamp));
+  };
+
+  const saveEdit = () => {
+    if (!editLap) return;
+    if (!editDate || !editTime) {
+      toast.error("Pick a date and time");
+      return;
+    }
+    const ts = new Date(`${editDate}T${editTime}`).getTime();
+    if (!isFinite(ts)) {
+      toast.error("Invalid date/time");
+      return;
+    }
+    if (ts > Date.now() + 60_000) {
+      toast.error("Time can't be in the future");
+      return;
+    }
+    updateLapTimestamp(editLap.id, ts);
+    toast.success(`Lap updated to ${formatClock(ts)}`);
+    setEditLap(null);
+  };
 
   return (
     <AppShell title={athlete.name}>
@@ -129,22 +181,27 @@ const AthleteDetail = () => {
           <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Lap history
           </h2>
-          <Button
-            size="sm"
-            variant="secondary"
-            className="gap-1"
-            onClick={() => {
-              const now = new Date();
-              const pad = (n: number) => String(n).padStart(2, "0");
-              setManualDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
-              setManualTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
-              setManualOpen((v) => !v);
-            }}
-          >
-            {manualOpen ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-            {manualOpen ? "Cancel" : "Manual lap"}
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/nutrition")} className="gap-1 text-xs">
+              Edit plans <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="gap-1"
+              onClick={() => {
+                const now = new Date();
+                setManualDate(tsToDate(now.getTime()));
+                setManualTime(tsToTime(now.getTime()));
+                setManualOpen((v) => !v);
+              }}
+            >
+              {manualOpen ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+              {manualOpen ? "Cancel" : "Manual lap"}
+            </Button>
+          </div>
         </div>
+
         {manualOpen && (
           <div className="mb-2 rounded-2xl border border-primary/40 bg-card p-3">
             <p className="mb-2 text-xs text-muted-foreground">
@@ -201,92 +258,183 @@ const AthleteDetail = () => {
             </div>
           </div>
         )}
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">#</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Lap</TableHead>
-                <TableHead>Pace</TableHead>
-                <TableHead className="w-8" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {laps.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
-                    Tap Checkpoint on the dashboard to start logging.
-                  </TableCell>
-                </TableRow>
-              )}
-              {[...laps].reverse().map((l) => (
-                <TableRow key={l.id}>
-                  <TableCell className="font-bold tabular">{l.lapNumber}</TableCell>
-                  <TableCell className="tabular text-muted-foreground">{formatClock(l.timestamp)}</TableCell>
-                  <TableCell className="tabular">{l.lapTime > 0 ? formatDuration(l.lapTime) : "—"}</TableCell>
-                  <TableCell className="tabular">{l.pace > 0 ? formatPace(l.pace, athlete.unit) : "—"}</TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                      onClick={() => deleteLap(l.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </section>
 
-      <section className="mt-6">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Nutrition log
-          </h2>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/nutrition")} className="gap-1 text-xs">
-            Edit plans <ArrowRight className="h-3.5 w-3.5" />
-          </Button>
-        </div>
         <div className="space-y-2">
           {laps.length === 0 && (
             <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
-              Log laps to track nutrition completion.
+              Tap Lap on the dashboard to start logging.
             </p>
           )}
           {[...laps].reverse().map((l) => {
             const plan = planFor(athlete.id, l.lapNumber);
             const log = logFor(athlete.id, l.lapNumber);
-            if (!plan || plan.items.length === 0) return null;
+            const km = l.lapNumber * athlete.lapDistance;
             return (
               <div key={l.id} className="rounded-xl border border-border bg-card p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Lap {l.lapNumber} • {formatClock(l.timestamp)}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lap</span>
+                      <span className="tabular text-lg font-bold leading-none">{l.lapNumber}</span>
+                      <span className="text-xs text-muted-foreground tabular">
+                        ({km.toFixed(athlete.lapDistance % 1 === 0 ? 0 : 2)} {athlete.unit})
+                      </span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs tabular text-muted-foreground">
+                      <span>⏱ {formatClock(l.timestamp)}</span>
+                      <span>Δ {l.lapTime > 0 ? formatDuration(l.lapTime) : "—"}</span>
+                      <span>{l.pace > 0 ? formatPace(l.pace, athlete.unit) : "—"}</span>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-0.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      onClick={() => openEdit(l)}
+                      aria-label="Edit lap"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => setConfirmDeleteLap(l)}
+                      aria-label="Delete lap"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
+                {plan && plan.items.length > 0 && (
+                  <ul className="mt-2 flex flex-wrap gap-1.5 border-t border-border/60 pt-2">
+                    {plan.items.map((item) => {
+                      const checked = log?.completedItemIds.includes(item.id) ?? false;
+                      return (
+                        <li key={item.id}>
+                          <button
+                            onClick={() => toggleLogItem(athlete.id, l.lapNumber, item.id)}
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
+                              checked
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-secondary/40 text-muted-foreground line-through hover:border-primary/60"
+                            )}
+                          >
+                            {checked && <Check className="h-3 w-3" />}
+                            {item.label}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Edit lap dialog */}
+      <Dialog open={!!editLap} onOpenChange={(v) => !v && setEditLap(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit lap {editLap?.lapNumber}</DialogTitle>
+            <DialogDescription>
+              Change the checkpoint time. Toggle nutrition items below to update what was actually consumed.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="e-date" className="text-xs">Date</Label>
+              <Input id="e-date" type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="e-time" className="text-xs">Time (HH:MM)</Label>
+              <Input id="e-time" type="time" step="60" value={editTime} onChange={(e) => setEditTime(e.target.value)} />
+            </div>
+          </div>
+
+          {editLap && (() => {
+            const plan = planFor(athlete.id, editLap.lapNumber);
+            const log = logFor(athlete.id, editLap.lapNumber);
+            if (!plan || plan.items.length === 0) {
+              return (
+                <p className="rounded-md border border-dashed p-3 text-center text-xs text-muted-foreground">
+                  No nutrition items planned for this lap.
                 </p>
-                <ul className="space-y-1.5">
+              );
+            }
+            return (
+              <div>
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Nutrition received
+                </p>
+                <ul className="flex flex-wrap gap-1.5">
                   {plan.items.map((item) => {
                     const checked = log?.completedItemIds.includes(item.id) ?? false;
                     return (
-                      <li key={item.id} className="flex items-center gap-3">
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={() => toggleLogItem(athlete.id, l.lapNumber, item.id)}
-                          className="h-5 w-5"
-                        />
-                        <span className={checked ? "text-muted-foreground line-through" : ""}>{item.label}</span>
+                      <li key={item.id}>
+                        <button
+                          onClick={() => toggleLogItem(athlete.id, editLap.lapNumber, item.id)}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                            checked
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-secondary/40 text-muted-foreground line-through hover:border-primary/60"
+                          )}
+                        >
+                          {checked && <Check className="h-3 w-3" />}
+                          {item.label}
+                        </button>
                       </li>
                     );
                   })}
                 </ul>
               </div>
             );
-          })}
-        </div>
-      </section>
+          })()}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditLap(null)}>Cancel</Button>
+            <Button onClick={saveEdit}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm delete lap */}
+      <AlertDialog open={!!confirmDeleteLap} onOpenChange={(v) => !v && setConfirmDeleteLap(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete lap {confirmDeleteLap?.lapNumber}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the checkpoint at{" "}
+              <span className="font-semibold text-foreground tabular">
+                {confirmDeleteLap ? formatClock(confirmDeleteLap.timestamp) : ""}
+              </span>
+              . Subsequent laps will be renumbered. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmDeleteLap) {
+                  deleteLap(confirmDeleteLap.id);
+                  toast.success(`Lap ${confirmDeleteLap.lapNumber} deleted`);
+                }
+                setConfirmDeleteLap(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 };
