@@ -297,17 +297,88 @@ const DraftForm = ({
         </ToggleGroup>
       </div>
       {draft.kind === "distance" ? (
-        <div className="space-y-1.5">
-          <Label htmlFor="ev-km" className="text-xs">Distance (km)</Label>
-          <Input
-            id="ev-km"
-            inputMode="decimal"
-            value={draft.distanceKm}
-            onChange={(e) => setDraft({ ...draft, distanceKm: e.target.value })}
-            placeholder="50"
-            className="h-9"
-          />
-        </div>
+        <>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Lap layout</Label>
+            <ToggleGroup
+              type="single"
+              value={draft.lapMode}
+              onValueChange={(v) => v && setDraft({ ...draft, lapMode: v as "fixed" | "variable" })}
+              className="justify-start"
+            >
+              <ToggleGroupItem value="fixed" className="px-4">Fixed laps</ToggleGroupItem>
+              <ToggleGroupItem value="variable" className="px-4">Variable laps</ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+          {draft.lapMode === "fixed" ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="ev-km" className="text-xs">Distance (km)</Label>
+              <Input
+                id="ev-km"
+                inputMode="decimal"
+                value={draft.distanceKm}
+                onChange={(e) => setDraft({ ...draft, distanceKm: e.target.value })}
+                placeholder="50"
+                className="h-9"
+              />
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Checkpoint distances (km)</Label>
+                <span className="text-[10px] tabular text-muted-foreground">
+                  Total{" "}
+                  {draft.lapDistancesKm
+                    .map((s) => parseFloat(s) || 0)
+                    .reduce((a, b) => a + b, 0)
+                    .toFixed(2)}{" "}
+                  km
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Distance from previous checkpoint (or start) to this one.
+              </p>
+              <div className="space-y-1.5">
+                {draft.lapDistancesKm.map((val, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <span className="w-6 text-right text-[11px] tabular text-muted-foreground">{idx + 1}.</span>
+                    <Input
+                      inputMode="decimal"
+                      value={val}
+                      onChange={(e) => {
+                        const next = [...draft.lapDistancesKm];
+                        next[idx] = e.target.value;
+                        setDraft({ ...draft, lapDistancesKm: next });
+                      }}
+                      placeholder="e.g. 5"
+                      className="h-8"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        const next = draft.lapDistancesKm.filter((_, i) => i !== idx);
+                        setDraft({ ...draft, lapDistancesKm: next.length ? next : [""] });
+                      }}
+                      aria-label="Remove checkpoint"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="gap-1"
+                onClick={() => setDraft({ ...draft, lapDistancesKm: [...draft.lapDistancesKm, ""] })}
+              >
+                <Plus className="h-3.5 w-3.5" /> Add checkpoint
+              </Button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1.5">
