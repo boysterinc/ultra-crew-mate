@@ -95,22 +95,30 @@ const SettingsButton = () => {
   const saveDraft = () => {
     const name = draft.name.trim();
     if (!name) return;
-    const payload: Omit<RaceEvent, "id" | "order"> = {
-      name,
-      kind: draft.kind,
-      ...(draft.kind === "distance"
-        ? { distanceKm: Math.max(0, parseFloat(draft.distanceKm) || 0) }
-        : {
-            durationMinutes:
-              Math.max(0, parseInt(draft.hours || "0", 10) || 0) * 60 +
-              Math.max(0, parseInt(draft.minutes || "0", 10) || 0),
-          }),
-    };
-    if (
-      (payload.kind === "distance" && (payload.distanceKm ?? 0) <= 0) ||
-      (payload.kind === "time" && (payload.durationMinutes ?? 0) <= 0)
-    ) {
-      return;
+    let payload: Omit<RaceEvent, "id" | "order">;
+    if (draft.kind === "distance") {
+      const variable = draft.lapMode === "variable";
+      const lapDists = variable
+        ? draft.lapDistancesKm.map((s) => Math.max(0, parseFloat(s) || 0)).filter((d) => d > 0)
+        : [];
+      const distanceKm = variable
+        ? lapDists.reduce((s, d) => s + d, 0)
+        : Math.max(0, parseFloat(draft.distanceKm) || 0);
+      if (distanceKm <= 0) return;
+      payload = {
+        name,
+        kind: "distance",
+        distanceKm,
+        ...(variable
+          ? { lapMode: "variable" as const, lapDistancesKm: lapDists }
+          : { lapMode: "fixed" as const }),
+      };
+    } else {
+      const durationMinutes =
+        Math.max(0, parseInt(draft.hours || "0", 10) || 0) * 60 +
+        Math.max(0, parseInt(draft.minutes || "0", 10) || 0);
+      if (durationMinutes <= 0) return;
+      payload = { name, kind: "time", durationMinutes };
     }
     if (editingId) {
       updateEvent(editingId, payload);
@@ -121,7 +129,12 @@ const SettingsButton = () => {
   };
 
   const formatEventValue = (e: RaceEvent) => {
-    if (e.kind === "distance") return `${e.distanceKm} km`;
+    if (e.kind === "distance") {
+      if (e.lapMode === "variable" && e.lapDistancesKm?.length) {
+        return `${e.distanceKm} km · ${e.lapDistancesKm.length} variable laps`;
+      }
+      return `${e.distanceKm} km`;
+    }
     const h = Math.floor((e.durationMinutes ?? 0) / 60);
     const m = (e.durationMinutes ?? 0) % 60;
     return `${h}h ${String(m).padStart(2, "0")}m`;
