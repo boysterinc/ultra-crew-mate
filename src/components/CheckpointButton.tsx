@@ -66,7 +66,7 @@ const CheckpointButton = ({ athlete, lastTimestamp, size = "md", isStart = false
       >
         <span className={cn("flex items-center justify-center", size === "sm" ? "gap-1" : "gap-2")}>
           <Zap className={size === "sm" ? "h-3.5 w-3.5" : "h-6 w-6"} strokeWidth={2.5} />
-          {isStart ? "Start" : size === "sm" ? "Lap" : "Checkpoint"}
+          {isStart ? "Start" : "Lap"}
         </span>
       </button>
 
