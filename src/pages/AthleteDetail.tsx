@@ -7,9 +7,9 @@ import { Trash2, ArrowRight, Plus, X, Pencil, Check } from "lucide-react";
 import AthleteSwitcher from "@/components/AthleteSwitcher";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
-import { formatDuration, formatPace, formatClock, formatDistance } from "@/lib/format";
-import { totalLapsFor, distanceCovered } from "@/lib/race";
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, ReferenceLine } from "recharts";
+import { formatDuration, formatPace, formatClock, formatDistance, formatHM } from "@/lib/format";
+import { totalLapsFor, distanceCovered, avgRecentLapTime } from "@/lib/race";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +44,7 @@ const tsToTime = (ts: number) => {
 
 const AthleteDetail = () => {
   const athletes = useRaceStore((s) => s.athletes);
+  const events = useRaceStore((s) => s.events);
   const selectedId = useRaceStore((s) => s.selectedAthleteId);
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const allLaps = useRaceStore((s) => s.laps);
@@ -88,8 +89,52 @@ const AthleteDetail = () => {
     );
   }
 
-  const totalLaps = totalLapsFor(athlete);
-  const distance = distanceCovered(athlete, laps.length);
+  const event = athlete.eventId ? events.find((e) => e.id === athlete.eventId) : undefined;
+  const totalLaps = totalLapsFor(athlete, event);
+  const distance = distanceCovered(athlete, laps.length, event);
+
+  // Per-lap distance helpers (km offsets shown next to each lap row)
+  const lapDistsUnit = (() => {
+    if (event?.kind === "distance" && event.lapMode === "variable" && event.lapDistancesKm?.length) {
+      return event.lapDistancesKm
+        .filter((d) => d > 0)
+        .map((km) => (athlete.unit === "mi" ? km / 1.609344 : km));
+    }
+    return Array.from({ length: totalLaps }, () => athlete.lapDistance);
+  })();
+  const cumulativeAt = (lapNumber: number) =>
+    lapDistsUnit.slice(0, Math.max(0, Math.min(lapNumber, lapDistsUnit.length))).reduce((s, d) => s + d, 0);
+
+  // Average lap time in minutes (for chart reference line)
+  const avgLapMinutes = chartData.length > 0
+    ? +(chartData.reduce((s, d) => s + d.minutes, 0) / chartData.length).toFixed(2)
+    : 0;
+  const avgLapSec = avgLapMinutes * 60;
+
+  // Projected outcome based on average lap time / pace
+  let projection: { label: string; value: string } | null = null;
+  if (avgLapSec > 0 && laps.length > 0) {
+    const lapKm = athlete.unit === "mi" ? athlete.lapDistance * 1.609344 : athlete.lapDistance;
+    const paceSecPerKm = lapKm > 0 ? avgLapSec / lapKm : 0;
+    if (event?.kind === "time" && event.durationMinutes) {
+      const projectedKm = paceSecPerKm > 0 ? (event.durationMinutes * 60) / paceSecPerKm : 0;
+      projection = {
+        label: "Projected distance",
+        value: `${projectedKm.toFixed(1)} km`,
+      };
+    } else {
+      // Distance event (or no event): finish time = elapsed so far + remaining laps × avg
+      const remainingLaps = Math.max(0, totalLaps - laps.length);
+      const lastTs = laps[laps.length - 1].timestamp;
+      const startTs = laps[0].timestamp;
+      const elapsedSec = (lastTs - startTs) / 1000;
+      const projectedFinishSec = elapsedSec + remainingLaps * avgLapSec;
+      projection = {
+        label: "Projected finish",
+        value: formatHM(projectedFinishSec / 60),
+      };
+    }
+  }
 
   const openEdit = (l: Lap) => {
     setEditLap(l);
@@ -127,9 +172,25 @@ const AthleteDetail = () => {
       </div>
 
       <section className="mt-6">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Lap times
-        </h2>
+        <div className="mb-2 flex items-end justify-between gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Lap times
+          </h2>
+          {avgLapMinutes > 0 && (
+            <div className="flex items-center gap-3 text-[11px] tabular text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block h-0.5 w-3 bg-warning" />
+                Avg {formatDuration(avgLapSec)}
+              </span>
+              {projection && (
+                <span>
+                  <span className="text-muted-foreground/80">{projection.label}:</span>{" "}
+                  <span className="font-bold text-foreground">{projection.value}</span>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
         <div className="h-48 w-full rounded-2xl border border-border bg-card p-2">
           {chartData.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -162,6 +223,15 @@ const AthleteDetail = () => {
                   formatter={(v: number) => [`${v} min`, "Lap time"]}
                   labelFormatter={(l) => `Lap ${l}`}
                 />
+                {avgLapMinutes > 0 && (
+                  <ReferenceLine
+                    y={avgLapMinutes}
+                    stroke="hsl(var(--warning))"
+                    strokeDasharray="4 4"
+                    strokeWidth={1.5}
+                    ifOverflow="extendDomain"
+                  />
+                )}
                 <Line
                   type="monotone"
                   dataKey="minutes"
@@ -268,7 +338,7 @@ const AthleteDetail = () => {
           {[...laps].reverse().map((l) => {
             const plan = planFor(athlete.id, l.lapNumber);
             const log = logFor(athlete.id, l.lapNumber);
-            const km = l.lapNumber * athlete.lapDistance;
+            const km = cumulativeAt(l.lapNumber);
             return (
               <div key={l.id} className="rounded-xl border border-border bg-card p-3">
                 <div className="flex items-start justify-between gap-2">
@@ -277,7 +347,7 @@ const AthleteDetail = () => {
                       <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lap</span>
                       <span className="tabular text-lg font-bold leading-none">{l.lapNumber}</span>
                       <span className="text-xs text-muted-foreground tabular">
-                        ({km.toFixed(athlete.lapDistance % 1 === 0 ? 0 : 2)} {athlete.unit})
+                        ({km.toFixed(km >= 100 ? 0 : km >= 10 ? 1 : 2)} {athlete.unit})
                       </span>
                     </div>
                     <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs tabular text-muted-foreground">

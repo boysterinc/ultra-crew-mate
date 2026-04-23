@@ -33,9 +33,19 @@ type Draft = {
   distanceKm: string;
   hours: string;
   minutes: string;
+  lapMode: "fixed" | "variable";
+  lapDistancesKm: string[]; // editable per-checkpoint distances (km)
 };
 
-const emptyDraft = (): Draft => ({ name: "", kind: "distance", distanceKm: "", hours: "", minutes: "" });
+const emptyDraft = (): Draft => ({
+  name: "",
+  kind: "distance",
+  distanceKm: "",
+  hours: "",
+  minutes: "",
+  lapMode: "fixed",
+  lapDistancesKm: [""],
+});
 
 const SettingsButton = () => {
   const threshold = useRaceStore((s) => s.settings.doubleTapThresholdMinutes);
@@ -68,6 +78,11 @@ const SettingsButton = () => {
       distanceKm: e.distanceKm ? String(e.distanceKm) : "",
       hours: e.durationMinutes ? String(Math.floor(e.durationMinutes / 60)) : "",
       minutes: e.durationMinutes ? String(e.durationMinutes % 60) : "",
+      lapMode: e.lapMode === "variable" ? "variable" : "fixed",
+      lapDistancesKm:
+        e.lapMode === "variable" && e.lapDistancesKm?.length
+          ? e.lapDistancesKm.map((d) => String(d))
+          : [""],
     });
   };
 
@@ -80,22 +95,30 @@ const SettingsButton = () => {
   const saveDraft = () => {
     const name = draft.name.trim();
     if (!name) return;
-    const payload: Omit<RaceEvent, "id" | "order"> = {
-      name,
-      kind: draft.kind,
-      ...(draft.kind === "distance"
-        ? { distanceKm: Math.max(0, parseFloat(draft.distanceKm) || 0) }
-        : {
-            durationMinutes:
-              Math.max(0, parseInt(draft.hours || "0", 10) || 0) * 60 +
-              Math.max(0, parseInt(draft.minutes || "0", 10) || 0),
-          }),
-    };
-    if (
-      (payload.kind === "distance" && (payload.distanceKm ?? 0) <= 0) ||
-      (payload.kind === "time" && (payload.durationMinutes ?? 0) <= 0)
-    ) {
-      return;
+    let payload: Omit<RaceEvent, "id" | "order">;
+    if (draft.kind === "distance") {
+      const variable = draft.lapMode === "variable";
+      const lapDists = variable
+        ? draft.lapDistancesKm.map((s) => Math.max(0, parseFloat(s) || 0)).filter((d) => d > 0)
+        : [];
+      const distanceKm = variable
+        ? lapDists.reduce((s, d) => s + d, 0)
+        : Math.max(0, parseFloat(draft.distanceKm) || 0);
+      if (distanceKm <= 0) return;
+      payload = {
+        name,
+        kind: "distance",
+        distanceKm,
+        ...(variable
+          ? { lapMode: "variable" as const, lapDistancesKm: lapDists }
+          : { lapMode: "fixed" as const }),
+      };
+    } else {
+      const durationMinutes =
+        Math.max(0, parseInt(draft.hours || "0", 10) || 0) * 60 +
+        Math.max(0, parseInt(draft.minutes || "0", 10) || 0);
+      if (durationMinutes <= 0) return;
+      payload = { name, kind: "time", durationMinutes };
     }
     if (editingId) {
       updateEvent(editingId, payload);
@@ -106,7 +129,12 @@ const SettingsButton = () => {
   };
 
   const formatEventValue = (e: RaceEvent) => {
-    if (e.kind === "distance") return `${e.distanceKm} km`;
+    if (e.kind === "distance") {
+      if (e.lapMode === "variable" && e.lapDistancesKm?.length) {
+        return `${e.distanceKm} km · ${e.lapDistancesKm.length} variable laps`;
+      }
+      return `${e.distanceKm} km`;
+    }
     const h = Math.floor((e.durationMinutes ?? 0) / 60);
     const m = (e.durationMinutes ?? 0) % 60;
     return `${h}h ${String(m).padStart(2, "0")}m`;
@@ -269,17 +297,88 @@ const DraftForm = ({
         </ToggleGroup>
       </div>
       {draft.kind === "distance" ? (
-        <div className="space-y-1.5">
-          <Label htmlFor="ev-km" className="text-xs">Distance (km)</Label>
-          <Input
-            id="ev-km"
-            inputMode="decimal"
-            value={draft.distanceKm}
-            onChange={(e) => setDraft({ ...draft, distanceKm: e.target.value })}
-            placeholder="50"
-            className="h-9"
-          />
-        </div>
+        <>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Lap layout</Label>
+            <ToggleGroup
+              type="single"
+              value={draft.lapMode}
+              onValueChange={(v) => v && setDraft({ ...draft, lapMode: v as "fixed" | "variable" })}
+              className="justify-start"
+            >
+              <ToggleGroupItem value="fixed" className="px-4">Fixed laps</ToggleGroupItem>
+              <ToggleGroupItem value="variable" className="px-4">Variable laps</ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+          {draft.lapMode === "fixed" ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="ev-km" className="text-xs">Distance (km)</Label>
+              <Input
+                id="ev-km"
+                inputMode="decimal"
+                value={draft.distanceKm}
+                onChange={(e) => setDraft({ ...draft, distanceKm: e.target.value })}
+                placeholder="50"
+                className="h-9"
+              />
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Checkpoint distances (km)</Label>
+                <span className="text-[10px] tabular text-muted-foreground">
+                  Total{" "}
+                  {draft.lapDistancesKm
+                    .map((s) => parseFloat(s) || 0)
+                    .reduce((a, b) => a + b, 0)
+                    .toFixed(2)}{" "}
+                  km
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Distance from previous checkpoint (or start) to this one.
+              </p>
+              <div className="space-y-1.5">
+                {draft.lapDistancesKm.map((val, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <span className="w-6 text-right text-[11px] tabular text-muted-foreground">{idx + 1}.</span>
+                    <Input
+                      inputMode="decimal"
+                      value={val}
+                      onChange={(e) => {
+                        const next = [...draft.lapDistancesKm];
+                        next[idx] = e.target.value;
+                        setDraft({ ...draft, lapDistancesKm: next });
+                      }}
+                      placeholder="e.g. 5"
+                      className="h-8"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        const next = draft.lapDistancesKm.filter((_, i) => i !== idx);
+                        setDraft({ ...draft, lapDistancesKm: next.length ? next : [""] });
+                      }}
+                      aria-label="Remove checkpoint"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="gap-1"
+                onClick={() => setDraft({ ...draft, lapDistancesKm: [...draft.lapDistancesKm, ""] })}
+              >
+                <Plus className="h-3.5 w-3.5" /> Add checkpoint
+              </Button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1.5">

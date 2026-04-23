@@ -41,17 +41,20 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
     return () => window.clearInterval(t);
   }, []);
 
-  const totalLaps = totalLapsFor(athlete);
+  const totalLaps = totalLapsFor(athlete, event);
   const lapsDone = laps.length;
   const finished = lapsDone >= totalLaps;
   const last = laps[laps.length - 1];
   const measuredAvg = avgRecentLapTime(laps);
-  const goalLap = goalLapTime(athlete, event?.durationMinutes, event?.distanceKm);
+  const goalLap = goalLapTime(athlete, event, lapsDone);
   // Use measured pace once available, otherwise fall back to the goal pace.
   const avg = measuredAvg > 0 ? measuredAvg : goalLap;
-  const eta = nextEta(laps, goalLap);
-  const distance = distanceCovered(athlete, lapsDone);
-  const progressPct = Math.min(100, (distance / athlete.targetDistance) * 100);
+  const eta = nextEta(laps, athlete, event);
+  const distance = distanceCovered(athlete, lapsDone, event);
+  const progressTarget = event?.kind === "distance" && event.lapMode === "variable" && event.lapDistancesKm?.length
+    ? event.lapDistancesKm.reduce((s, d) => s + (athlete.unit === "mi" ? d / 1.609344 : d), 0)
+    : athlete.targetDistance;
+  const progressPct = progressTarget > 0 ? Math.min(100, (distance / progressTarget) * 100) : 0;
 
   const msToEta = eta ? eta - Date.now() : 0;
   const alertMs = (athlete.alertMinutes ?? 0) * 60_000;

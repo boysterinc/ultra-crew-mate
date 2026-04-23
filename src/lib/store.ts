@@ -77,6 +77,20 @@ const createDebouncedStorage = (delay = 150): StateStorage => {
 
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
+// Distance (in athlete unit) of lap N (1-based), honoring variable-distance events.
+const lapUnitDistance = (athlete: Athlete | undefined, lapNumber: number, events: RaceEvent[]): number => {
+  if (!athlete) return 0;
+  if (athlete.eventId) {
+    const ev = events.find((e) => e.id === athlete.eventId);
+    if (ev?.kind === "distance" && ev.lapMode === "variable" && ev.lapDistancesKm?.length) {
+      const arr = ev.lapDistancesKm.filter((d) => d > 0);
+      const km = arr[Math.min(Math.max(0, lapNumber - 1), arr.length - 1)] ?? 0;
+      return athlete.unit === "mi" ? km / 1.609344 : km;
+    }
+  }
+  return athlete.lapDistance;
+};
+
 interface RaceState {
   athletes: Athlete[];
   laps: Lap[];
@@ -236,7 +250,8 @@ export const useRaceStore = create<RaceState>()(
               const prev = arr[i - 1];
               const lapTime = prev ? (l.timestamp - prev.timestamp) / 1000 : 0;
               const ath = s.athletes.find((a) => a.id === l.athleteId);
-              const pace = lapTime > 0 && ath && ath.lapDistance > 0 ? lapTime / ath.lapDistance : 0;
+              const lapKm = lapUnitDistance(ath, i + 1, s.events);
+              const pace = lapTime > 0 && lapKm > 0 ? lapTime / lapKm : 0;
               const updated = { ...l, lapNumber: i + 1, lapTime, pace };
               if (l.id === newLap.id) inserted = updated;
               recomputed.push(updated);
@@ -263,7 +278,8 @@ export const useRaceStore = create<RaceState>()(
               const prev = arr[i - 1];
               const lapTime = prev ? (l.timestamp - prev.timestamp) / 1000 : 0;
               const ath = s.athletes.find((a) => a.id === l.athleteId);
-              const pace = lapTime > 0 && ath && ath.lapDistance > 0 ? lapTime / ath.lapDistance : 0;
+              const lapKm = lapUnitDistance(ath, i + 1, s.events);
+              const pace = lapTime > 0 && lapKm > 0 ? lapTime / lapKm : 0;
               recomputed.push({ ...l, lapNumber: i + 1, lapTime, pace });
             });
           });
@@ -279,11 +295,13 @@ export const useRaceStore = create<RaceState>()(
         const now = Date.now();
         const last = prior[prior.length - 1];
         const lapTime = last ? (now - last.timestamp) / 1000 : 0;
-        const pace = lapTime > 0 && athlete.lapDistance > 0 ? lapTime / athlete.lapDistance : 0;
+        const lapNumber = prior.length + 1;
+        const lapKm = lapUnitDistance(athlete, lapNumber, state.events);
+        const pace = lapTime > 0 && lapKm > 0 ? lapTime / lapKm : 0;
         const lap: Lap = {
           id: uid(),
           athleteId,
-          lapNumber: prior.length + 1,
+          lapNumber,
           timestamp: now,
           lapTime,
           pace,
@@ -310,7 +328,8 @@ export const useRaceStore = create<RaceState>()(
               const prev = arr[i - 1];
               const lapTime = prev ? (l.timestamp - prev.timestamp) / 1000 : 0;
               const athlete = s.athletes.find((a) => a.id === l.athleteId);
-              const pace = lapTime > 0 && athlete && athlete.lapDistance > 0 ? lapTime / athlete.lapDistance : 0;
+              const lapKm = lapUnitDistance(athlete, i + 1, s.events);
+              const pace = lapTime > 0 && lapKm > 0 ? lapTime / lapKm : 0;
               recomputed.push({ ...l, lapNumber: i + 1, lapTime, pace });
             });
           });

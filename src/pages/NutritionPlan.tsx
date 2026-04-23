@@ -16,12 +16,26 @@ const NutritionPlan = () => {
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const planFor = useRaceStore((s) => s.planFor);
   const setPlan = useRaceStore((s) => s.setPlan);
+  const nutritionItems = useRaceStore((s) => s.nutritionItems);
+  const addNutritionItem = useRaceStore((s) => s.addNutritionItem);
+  const removeNutritionItem = useRaceStore((s) => s.removeNutritionItem);
   const navigate = useNavigate();
 
+  const events = useRaceStore((s) => s.events);
   const athlete = athletes.find((a) => a.id === selectedId) ?? athletes[0] ?? null;
-  const totalLaps = athlete ? totalLapsFor(athlete) : 0;
+  const event = athlete?.eventId ? events.find((e) => e.id === athlete.eventId) : undefined;
+  const totalLaps = athlete ? totalLapsFor(athlete, event) : 0;
   const [lapNumber, setLapNumber] = useState(1);
   const [newItem, setNewItem] = useState("");
+
+  // Per-lap distance offsets (athlete unit)
+  const lapDistsUnit = athlete
+    ? (event?.kind === "distance" && event.lapMode === "variable" && event.lapDistancesKm?.length
+        ? event.lapDistancesKm.filter((d) => d > 0).map((km) => (athlete.unit === "mi" ? km / 1.609344 : km))
+        : Array.from({ length: totalLaps }, () => athlete.lapDistance))
+    : [];
+  const cumulativeAt = (n: number) =>
+    lapDistsUnit.slice(0, Math.max(0, Math.min(n, lapDistsUnit.length))).reduce((s, d) => s + d, 0);
 
   const plan = useMemo(
     () => (athlete ? planFor(athlete.id, lapNumber) : undefined),
@@ -42,7 +56,11 @@ const NutritionPlan = () => {
   const addItem = (label: string) => {
     const trimmed = label.trim();
     if (!trimmed) return;
-    setPlan(athlete.id, lapNumber, [...items, { id: newId(), label: trimmed }]);
+    // Keep the shared catalog in sync so the matrix editor sees this item too.
+    addNutritionItem(trimmed);
+    if (!items.some((i) => i.label === trimmed)) {
+      setPlan(athlete.id, lapNumber, [...items, { id: newId(), label: trimmed }]);
+    }
     setNewItem("");
   };
 
@@ -73,7 +91,10 @@ const NutritionPlan = () => {
             <p className="text-xs text-muted-foreground">
               of {totalLaps} ·{" "}
               <span className="tabular">
-                ({(lapNumber * athlete.lapDistance).toFixed(athlete.lapDistance % 1 === 0 ? 0 : 2)} {athlete.unit})
+                {(() => {
+                  const k = cumulativeAt(lapNumber);
+                  return `(${k.toFixed(k >= 100 ? 0 : k >= 10 ? 1 : 2)} ${athlete.unit})`;
+                })()}
               </span>
             </p>
           </div>
@@ -143,8 +164,8 @@ const NutritionPlan = () => {
         plans={allPlans}
         currentLap={lapNumber}
         onJump={(n) => setLapNumber(n)}
-        lapDistance={athlete.lapDistance}
         unit={athlete.unit}
+        cumulativeAt={cumulativeAt}
       />
     </AppShell>
   );
@@ -156,34 +177,26 @@ interface PlanOverviewProps {
   plans: ReturnType<typeof useRaceStore.getState>["plans"];
   currentLap: number;
   onJump: (lap: number) => void;
-  lapDistance: number;
   unit: "km" | "mi";
+  cumulativeAt: (lap: number) => number;
 }
 
-const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump, lapDistance, unit }: PlanOverviewProps) => {
-  const setPlan = useRaceStore((s) => s.setPlan);
+const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump, unit, cumulativeAt }: PlanOverviewProps) => {
+  const nutritionItems = useRaceStore((s) => s.nutritionItems);
+  const removeNutritionItem = useRaceStore((s) => s.removeNutritionItem);
 
   const athletePlans = plans
     .filter((p) => p.athleteId === athleteId && p.lapNumber <= totalLaps)
     .sort((a, b) => a.lapNumber - b.lapNumber);
   const nonEmpty = athletePlans.filter((p) => p.items.length > 0);
 
-  // Union of all item labels currently used across this athlete's plans
-  const usedLabels = Array.from(
-    new Set(athletePlans.flatMap((p) => p.items.map((it) => it.label)))
-  ).sort();
+  // Items in use = the shared catalog (single source of truth, shared with the matrix editor)
+  const usedLabels = [...nutritionItems].sort();
 
   const removeLabelEverywhere = (label: string) => {
-    athletePlans.forEach((p) => {
-      if (p.items.some((it) => it.label === label)) {
-        setPlan(
-          athleteId,
-          p.lapNumber,
-          p.items.filter((it) => it.label !== label)
-        );
-      }
-    });
-    toast.success(`Removed "${label}" from all laps`);
+    // Removes from the catalog AND from every plan in one shot.
+    removeNutritionItem(label);
+    toast.success(`Removed "${label}" from catalog and all laps`);
   };
 
   return (
@@ -239,7 +252,10 @@ const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump, lapDist
                     <span className="tabular text-lg font-bold leading-none">{p.lapNumber}</span>
                     <span className="text-xs text-muted-foreground">/ {totalLaps}</span>
                     <span className="text-xs text-muted-foreground tabular">
-                      ({(p.lapNumber * lapDistance).toFixed(lapDistance % 1 === 0 ? 0 : 2)} {unit})
+                      {(() => {
+                        const k = cumulativeAt(p.lapNumber);
+                        return `(${k.toFixed(k >= 100 ? 0 : k >= 10 ? 1 : 2)} ${unit})`;
+                      })()}
                     </span>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
