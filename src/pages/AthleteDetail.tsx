@@ -338,7 +338,7 @@ const AthleteDetail = () => {
           {[...laps].reverse().map((l) => {
             const plan = planFor(athlete.id, l.lapNumber);
             const log = logFor(athlete.id, l.lapNumber);
-            const km = l.lapNumber * athlete.lapDistance;
+            const km = cumulativeAt(l.lapNumber);
             return (
               <div key={l.id} className="rounded-xl border border-border bg-card p-3">
                 <div className="flex items-start justify-between gap-2">
@@ -347,7 +347,7 @@ const AthleteDetail = () => {
                       <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lap</span>
                       <span className="tabular text-lg font-bold leading-none">{l.lapNumber}</span>
                       <span className="text-xs text-muted-foreground tabular">
-                        ({km.toFixed(athlete.lapDistance % 1 === 0 ? 0 : 2)} {athlete.unit})
+                        ({km.toFixed(km >= 100 ? 0 : km >= 10 ? 1 : 2)} {athlete.unit})
                       </span>
                     </div>
                     <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs tabular text-muted-foreground">
