@@ -202,16 +202,27 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
                 placeholder="6.7"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="target">Target ({unit})</Label>
-              <Input
-                id="target"
-                inputMode="decimal"
-                value={targetDistance}
-                onChange={(e) => setTargetDistance(e.target.value)}
-                placeholder="100"
-              />
-            </div>
+            {!selectedEvent && (
+              <div className="space-y-2">
+                <Label htmlFor="target">Target ({unit})</Label>
+                <Input
+                  id="target"
+                  inputMode="decimal"
+                  value={targetDistance}
+                  onChange={(e) => setTargetDistance(e.target.value)}
+                  placeholder="100"
+                />
+              </div>
+            )}
+            {selectedEvent && (
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Target ({unit})</Label>
+                <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm tabular">
+                  {derivedTarget > 0 ? derivedTarget.toFixed(2) : "—"}
+                </div>
+                <p className="text-[10px] text-muted-foreground">From event{selectedEvent.kind === "time" ? " goal" : ""}</p>
+              </div>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="alert">Alert before ETA (minutes)</Label>
