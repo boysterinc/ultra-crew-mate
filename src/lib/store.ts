@@ -77,6 +77,20 @@ const createDebouncedStorage = (delay = 150): StateStorage => {
 
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
+// Distance (in athlete unit) of lap N (1-based), honoring variable-distance events.
+const lapUnitDistance = (athlete: Athlete | undefined, lapNumber: number, events: RaceEvent[]): number => {
+  if (!athlete) return 0;
+  if (athlete.eventId) {
+    const ev = events.find((e) => e.id === athlete.eventId);
+    if (ev?.kind === "distance" && ev.lapMode === "variable" && ev.lapDistancesKm?.length) {
+      const arr = ev.lapDistancesKm.filter((d) => d > 0);
+      const km = arr[Math.min(Math.max(0, lapNumber - 1), arr.length - 1)] ?? 0;
+      return athlete.unit === "mi" ? km / 1.609344 : km;
+    }
+  }
+  return athlete.lapDistance;
+};
+
 interface RaceState {
   athletes: Athlete[];
   laps: Lap[];
