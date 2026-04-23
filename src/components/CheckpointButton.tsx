@@ -20,9 +20,10 @@ interface CheckpointButtonProps {
   athlete: Athlete;
   lastTimestamp?: number;
   size?: "lg" | "md" | "sm";
+  isStart?: boolean;
 }
 
-const CheckpointButton = ({ athlete, lastTimestamp, size = "md" }: CheckpointButtonProps) => {
+const CheckpointButton = ({ athlete, lastTimestamp, size = "md", isStart = false }: CheckpointButtonProps) => {
   const recordLap = useRaceStore((s) => s.recordLap);
   const threshold = useRaceStore((s) => s.settings.doubleTapThresholdMinutes);
   const [confirming, setConfirming] = useState(false);
