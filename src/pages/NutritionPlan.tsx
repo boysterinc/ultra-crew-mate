@@ -16,6 +16,9 @@ const NutritionPlan = () => {
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const planFor = useRaceStore((s) => s.planFor);
   const setPlan = useRaceStore((s) => s.setPlan);
+  const nutritionItems = useRaceStore((s) => s.nutritionItems);
+  const addNutritionItem = useRaceStore((s) => s.addNutritionItem);
+  const removeNutritionItem = useRaceStore((s) => s.removeNutritionItem);
   const navigate = useNavigate();
 
   const athlete = athletes.find((a) => a.id === selectedId) ?? athletes[0] ?? null;
@@ -42,7 +45,11 @@ const NutritionPlan = () => {
   const addItem = (label: string) => {
     const trimmed = label.trim();
     if (!trimmed) return;
-    setPlan(athlete.id, lapNumber, [...items, { id: newId(), label: trimmed }]);
+    // Keep the shared catalog in sync so the matrix editor sees this item too.
+    addNutritionItem(trimmed);
+    if (!items.some((i) => i.label === trimmed)) {
+      setPlan(athlete.id, lapNumber, [...items, { id: newId(), label: trimmed }]);
+    }
     setNewItem("");
   };
 
