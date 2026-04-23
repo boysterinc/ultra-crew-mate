@@ -168,29 +168,21 @@ interface PlanOverviewProps {
 }
 
 const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump, lapDistance, unit }: PlanOverviewProps) => {
-  const setPlan = useRaceStore((s) => s.setPlan);
+  const nutritionItems = useRaceStore((s) => s.nutritionItems);
+  const removeNutritionItem = useRaceStore((s) => s.removeNutritionItem);
 
   const athletePlans = plans
     .filter((p) => p.athleteId === athleteId && p.lapNumber <= totalLaps)
     .sort((a, b) => a.lapNumber - b.lapNumber);
   const nonEmpty = athletePlans.filter((p) => p.items.length > 0);
 
-  // Union of all item labels currently used across this athlete's plans
-  const usedLabels = Array.from(
-    new Set(athletePlans.flatMap((p) => p.items.map((it) => it.label)))
-  ).sort();
+  // Items in use = the shared catalog (single source of truth, shared with the matrix editor)
+  const usedLabels = [...nutritionItems].sort();
 
   const removeLabelEverywhere = (label: string) => {
-    athletePlans.forEach((p) => {
-      if (p.items.some((it) => it.label === label)) {
-        setPlan(
-          athleteId,
-          p.lapNumber,
-          p.items.filter((it) => it.label !== label)
-        );
-      }
-    });
-    toast.success(`Removed "${label}" from all laps`);
+    // Removes from the catalog AND from every plan in one shot.
+    removeNutritionItem(label);
+    toast.success(`Removed "${label}" from catalog and all laps`);
   };
 
   return (
