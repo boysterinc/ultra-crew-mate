@@ -91,7 +91,10 @@ const NutritionPlan = () => {
             <p className="text-xs text-muted-foreground">
               of {totalLaps} ·{" "}
               <span className="tabular">
-                ({(lapNumber * athlete.lapDistance).toFixed(athlete.lapDistance % 1 === 0 ? 0 : 2)} {athlete.unit})
+                {(() => {
+                  const k = cumulativeAt(lapNumber);
+                  return `(${k.toFixed(k >= 100 ? 0 : k >= 10 ? 1 : 2)} ${athlete.unit})`;
+                })()}
               </span>
             </p>
           </div>
