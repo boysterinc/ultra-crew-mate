@@ -95,6 +95,7 @@ interface RaceState {
 
   // laps (declared in laps section below too)
   addManualLap: (athleteId: string, timestamp: number) => Lap | null;
+  updateLapTimestamp: (lapId: string, timestamp: number) => void;
 
   // events
   addEvent: (e: Omit<RaceEvent, "id" | "order">) => string;
