@@ -143,6 +143,8 @@ const NutritionPlan = () => {
         plans={allPlans}
         currentLap={lapNumber}
         onJump={(n) => setLapNumber(n)}
+        lapDistance={athlete.lapDistance}
+        unit={athlete.unit}
       />
     </AppShell>
   );
@@ -154,9 +156,11 @@ interface PlanOverviewProps {
   plans: ReturnType<typeof useRaceStore.getState>["plans"];
   currentLap: number;
   onJump: (lap: number) => void;
+  lapDistance: number;
+  unit: "km" | "mi";
 }
 
-const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump }: PlanOverviewProps) => {
+const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump, lapDistance, unit }: PlanOverviewProps) => {
   const setPlan = useRaceStore((s) => s.setPlan);
 
   const athletePlans = plans
