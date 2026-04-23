@@ -91,6 +91,38 @@ const AthleteDetail = () => {
 
   const totalLaps = totalLapsFor(athlete);
   const distance = distanceCovered(athlete, laps.length);
+  const event = athlete.eventId ? events.find((e) => e.id === athlete.eventId) : undefined;
+
+  // Average lap time in minutes (for chart reference line)
+  const avgLapMinutes = chartData.length > 0
+    ? +(chartData.reduce((s, d) => s + d.minutes, 0) / chartData.length).toFixed(2)
+    : 0;
+  const avgLapSec = avgLapMinutes * 60;
+
+  // Projected outcome based on average lap time / pace
+  let projection: { label: string; value: string } | null = null;
+  if (avgLapSec > 0 && laps.length > 0) {
+    const lapKm = athlete.unit === "mi" ? athlete.lapDistance * 1.609344 : athlete.lapDistance;
+    const paceSecPerKm = lapKm > 0 ? avgLapSec / lapKm : 0;
+    if (event?.kind === "time" && event.durationMinutes) {
+      const projectedKm = paceSecPerKm > 0 ? (event.durationMinutes * 60) / paceSecPerKm : 0;
+      projection = {
+        label: "Projected distance",
+        value: `${projectedKm.toFixed(1)} km`,
+      };
+    } else {
+      // Distance event (or no event): finish time = elapsed so far + remaining laps × avg
+      const remainingLaps = Math.max(0, totalLaps - laps.length);
+      const lastTs = laps[laps.length - 1].timestamp;
+      const startTs = laps[0].timestamp;
+      const elapsedSec = (lastTs - startTs) / 1000;
+      const projectedFinishSec = elapsedSec + remainingLaps * avgLapSec;
+      projection = {
+        label: "Projected finish",
+        value: formatHM(projectedFinishSec / 60),
+      };
+    }
+  }
 
   const openEdit = (l: Lap) => {
     setEditLap(l);
