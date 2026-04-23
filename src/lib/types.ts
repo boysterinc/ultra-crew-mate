@@ -9,6 +9,11 @@ export interface RaceEvent {
   distanceKm?: number; // when kind === "distance"
   durationMinutes?: number; // when kind === "time"
   order: number;
+  // Lap layout (only meaningful for kind === "distance"):
+  //  - "fixed" (default): every checkpoint is the same distance (athlete.lapDistance).
+  //  - "variable": each checkpoint has its own distance defined in lapDistancesKm.
+  lapMode?: "fixed" | "variable";
+  lapDistancesKm?: number[];
 }
 
 export interface Athlete {
