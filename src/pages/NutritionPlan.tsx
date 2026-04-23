@@ -70,7 +70,12 @@ const NutritionPlan = () => {
           </Button>
           <div className="text-center">
             <p className="tabular text-4xl font-bold leading-none">{lapNumber}</p>
-            <p className="text-xs text-muted-foreground">of {totalLaps}</p>
+            <p className="text-xs text-muted-foreground">
+              of {totalLaps} ·{" "}
+              <span className="tabular">
+                ({(lapNumber * athlete.lapDistance).toFixed(athlete.lapDistance % 1 === 0 ? 0 : 2)} {athlete.unit})
+              </span>
+            </p>
           </div>
           <Button
             variant="secondary"
