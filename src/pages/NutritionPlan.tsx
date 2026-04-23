@@ -238,6 +238,9 @@ const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump, lapDist
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lap</span>
                     <span className="tabular text-lg font-bold leading-none">{p.lapNumber}</span>
                     <span className="text-xs text-muted-foreground">/ {totalLaps}</span>
+                    <span className="text-xs text-muted-foreground tabular">
+                      ({(p.lapNumber * lapDistance).toFixed(lapDistance % 1 === 0 ? 0 : 2)} {unit})
+                    </span>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {p.items.map((it) => (
