@@ -328,7 +328,8 @@ export const useRaceStore = create<RaceState>()(
               const prev = arr[i - 1];
               const lapTime = prev ? (l.timestamp - prev.timestamp) / 1000 : 0;
               const athlete = s.athletes.find((a) => a.id === l.athleteId);
-              const pace = lapTime > 0 && athlete && athlete.lapDistance > 0 ? lapTime / athlete.lapDistance : 0;
+              const lapKm = lapUnitDistance(athlete, i + 1, s.events);
+              const pace = lapTime > 0 && lapKm > 0 ? lapTime / lapKm : 0;
               recomputed.push({ ...l, lapNumber: i + 1, lapTime, pace });
             });
           });
