@@ -250,7 +250,8 @@ export const useRaceStore = create<RaceState>()(
               const prev = arr[i - 1];
               const lapTime = prev ? (l.timestamp - prev.timestamp) / 1000 : 0;
               const ath = s.athletes.find((a) => a.id === l.athleteId);
-              const pace = lapTime > 0 && ath && ath.lapDistance > 0 ? lapTime / ath.lapDistance : 0;
+              const lapKm = lapUnitDistance(ath, i + 1, s.events);
+              const pace = lapTime > 0 && lapKm > 0 ? lapTime / lapKm : 0;
               const updated = { ...l, lapNumber: i + 1, lapTime, pace };
               if (l.id === newLap.id) inserted = updated;
               recomputed.push(updated);
@@ -277,7 +278,8 @@ export const useRaceStore = create<RaceState>()(
               const prev = arr[i - 1];
               const lapTime = prev ? (l.timestamp - prev.timestamp) / 1000 : 0;
               const ath = s.athletes.find((a) => a.id === l.athleteId);
-              const pace = lapTime > 0 && ath && ath.lapDistance > 0 ? lapTime / ath.lapDistance : 0;
+              const lapKm = lapUnitDistance(ath, i + 1, s.events);
+              const pace = lapTime > 0 && lapKm > 0 ? lapTime / lapKm : 0;
               recomputed.push({ ...l, lapNumber: i + 1, lapTime, pace });
             });
           });
@@ -293,11 +295,13 @@ export const useRaceStore = create<RaceState>()(
         const now = Date.now();
         const last = prior[prior.length - 1];
         const lapTime = last ? (now - last.timestamp) / 1000 : 0;
-        const pace = lapTime > 0 && athlete.lapDistance > 0 ? lapTime / athlete.lapDistance : 0;
+        const lapNumber = prior.length + 1;
+        const lapKm = lapUnitDistance(athlete, lapNumber, state.events);
+        const pace = lapTime > 0 && lapKm > 0 ? lapTime / lapKm : 0;
         const lap: Lap = {
           id: uid(),
           athleteId,
-          lapNumber: prior.length + 1,
+          lapNumber,
           timestamp: now,
           lapTime,
           pace,
