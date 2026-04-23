@@ -7,9 +7,9 @@ import { Trash2, ArrowRight, Plus, X, Pencil, Check } from "lucide-react";
 import AthleteSwitcher from "@/components/AthleteSwitcher";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
-import { formatDuration, formatPace, formatClock, formatDistance } from "@/lib/format";
-import { totalLapsFor, distanceCovered } from "@/lib/race";
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, ReferenceLine } from "recharts";
+import { formatDuration, formatPace, formatClock, formatDistance, formatHM } from "@/lib/format";
+import { totalLapsFor, distanceCovered, avgRecentLapTime } from "@/lib/race";
 import {
   Dialog,
   DialogContent,
