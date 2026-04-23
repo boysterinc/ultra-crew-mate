@@ -96,13 +96,26 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   };
 
   const lapDistanceNum = parseFloat(lapDistance) || 0;
-  const targetDistanceNum = parseFloat(targetDistance) || 0;
   const alertMinutesNum = Math.max(0, parseFloat(alertMinutes) || 0);
+  const selectedEvent = sortedEvents.find((e) => e.id === eventId);
+
+  // When an event is selected, the target distance is derived from the event/goal — no separate Target field.
+  // - distance event: target = event.distanceKm (converted to athlete unit)
+  // - time event: target = goalDistanceKm (km, converted to athlete unit)
+  // - no event: user enters target manually.
+  const kmToUnit = (km: number) => (unit === "mi" ? km / 1.609344 : km);
+  let derivedTarget = 0;
+  if (selectedEvent?.kind === "distance" && selectedEvent.distanceKm) {
+    derivedTarget = kmToUnit(selectedEvent.distanceKm);
+  } else if (selectedEvent?.kind === "time") {
+    const g = parseFloat(goalDistanceKm) || 0;
+    derivedTarget = g > 0 ? kmToUnit(g) : 0;
+  }
+  const targetDistanceNum = selectedEvent ? derivedTarget : parseFloat(targetDistance) || 0;
   const previewLaps = lapDistanceNum > 0 && targetDistanceNum > 0
     ? totalLapsFor({ id: "", name: "", lapDistance: lapDistanceNum, targetDistance: targetDistanceNum, unit, alertMinutes: 0, createdAt: 0 })
     : 0;
 
-  const selectedEvent = sortedEvents.find((e) => e.id === eventId);
   const valid = name.trim() && lapDistanceNum > 0 && targetDistanceNum > 0;
 
   const onSubmit = () => {
@@ -189,16 +202,27 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
                 placeholder="6.7"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="target">Target ({unit})</Label>
-              <Input
-                id="target"
-                inputMode="decimal"
-                value={targetDistance}
-                onChange={(e) => setTargetDistance(e.target.value)}
-                placeholder="100"
-              />
-            </div>
+            {!selectedEvent && (
+              <div className="space-y-2">
+                <Label htmlFor="target">Target ({unit})</Label>
+                <Input
+                  id="target"
+                  inputMode="decimal"
+                  value={targetDistance}
+                  onChange={(e) => setTargetDistance(e.target.value)}
+                  placeholder="100"
+                />
+              </div>
+            )}
+            {selectedEvent && (
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Target ({unit})</Label>
+                <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm tabular">
+                  {derivedTarget > 0 ? derivedTarget.toFixed(2) : "—"}
+                </div>
+                <p className="text-[10px] text-muted-foreground">From event{selectedEvent.kind === "time" ? " goal" : ""}</p>
+              </div>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="alert">Alert before ETA (minutes)</Label>

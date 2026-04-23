@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { speakArrival } from "@/lib/speech";
 
 interface AthleteCardProps {
   athlete: Athlete;
@@ -64,6 +65,7 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
     toast.warning(`${athlete.name} arriving in ~${Math.max(0, Math.round(msToEta / 60000))} min`, {
       description: `Lap ${lapsDone + 1} of ${totalLaps}`,
     });
+    speakArrival(athlete.name);
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
       navigator.vibrate?.([200, 100, 200]);
     }
@@ -200,7 +202,7 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
             Race complete
           </div>
         ) : (
-          <CheckpointButton athlete={athlete} lastTimestamp={last?.timestamp} size={compact ? "sm" : "md"} />
+          <CheckpointButton athlete={athlete} lastTimestamp={last?.timestamp} size={compact ? "sm" : "md"} isStart={lapsDone === 0} />
         )}
       </div>
     </article>
