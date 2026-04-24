@@ -5,9 +5,19 @@ import { useRaceStore, newId } from "@/lib/store";
 import AthleteSwitcher from "@/components/AthleteSwitcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, ChevronLeft, ChevronRight, Pencil, Table2 } from "lucide-react";
+import { Trash2, ChevronLeft, ChevronRight, Pencil, Table2, Check, X } from "lucide-react";
 import { totalLapsFor } from "@/lib/race";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const NutritionPlan = () => {
   const athletes = useRaceStore((s) => s.athletes);
