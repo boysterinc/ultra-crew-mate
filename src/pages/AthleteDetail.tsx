@@ -332,6 +332,16 @@ const AthleteDetail = () => {
               Edit plans <ArrowRight className="h-3.5 w-3.5" />
             </Button>
             <Button
+              variant="ghost"
+              size="sm"
+              onClick={exportCsv}
+              className="gap-1 text-xs"
+              disabled={laps.length === 0}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export log
+            </Button>
+            <Button
               size="sm"
               variant="secondary"
               className="gap-1"
