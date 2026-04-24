@@ -1,24 +1,29 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppShell from "@/components/AppShell";
-import { useRaceStore, newId } from "@/lib/store";
+import { useRaceStore } from "@/lib/store";
 import AthleteSwitcher from "@/components/AthleteSwitcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, ChevronLeft, ChevronRight, Pencil, Table2 } from "lucide-react";
+import { Trash2, ChevronLeft, ChevronRight, Pencil, Table2, Check, X } from "lucide-react";
 import { totalLapsFor } from "@/lib/race";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const NutritionPlan = () => {
   const athletes = useRaceStore((s) => s.athletes);
   const allPlans = useRaceStore((s) => s.plans);
   const selectedId = useRaceStore((s) => s.selectedAthleteId);
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
-  const planFor = useRaceStore((s) => s.planFor);
-  const setPlan = useRaceStore((s) => s.setPlan);
-  const nutritionItems = useRaceStore((s) => s.nutritionItems);
-  const addNutritionItem = useRaceStore((s) => s.addNutritionItem);
-  const removeNutritionItem = useRaceStore((s) => s.removeNutritionItem);
   const navigate = useNavigate();
 
   const events = useRaceStore((s) => s.events);
@@ -26,7 +31,6 @@ const NutritionPlan = () => {
   const event = athlete?.eventId ? events.find((e) => e.id === athlete.eventId) : undefined;
   const totalLaps = athlete ? totalLapsFor(athlete, event) : 0;
   const [lapNumber, setLapNumber] = useState(1);
-  const [newItem, setNewItem] = useState("");
 
   // Per-lap distance offsets (athlete unit)
   const lapDistsUnit = athlete
@@ -37,12 +41,6 @@ const NutritionPlan = () => {
   const cumulativeAt = (n: number) =>
     lapDistsUnit.slice(0, Math.max(0, Math.min(n, lapDistsUnit.length))).reduce((s, d) => s + d, 0);
 
-  const plan = useMemo(
-    () => (athlete ? planFor(athlete.id, lapNumber) : undefined),
-    [athlete, lapNumber, planFor]
-  );
-  const items = plan?.items ?? [];
-
   if (!athlete) {
     return (
       <AppShell title="Nutrition">
@@ -52,21 +50,6 @@ const NutritionPlan = () => {
       </AppShell>
     );
   }
-
-  const addItem = (label: string) => {
-    const trimmed = label.trim();
-    if (!trimmed) return;
-    // Keep the shared catalog in sync so the matrix editor sees this item too.
-    addNutritionItem(trimmed);
-    if (!items.some((i) => i.label === trimmed)) {
-      setPlan(athlete.id, lapNumber, [...items, { id: newId(), label: trimmed }]);
-    }
-    setNewItem("");
-  };
-
-  const removeItem = (id: string) => {
-    setPlan(athlete.id, lapNumber, items.filter((i) => i.id !== id));
-  };
 
   return (
     <AppShell title="Nutrition">
@@ -117,46 +100,6 @@ const NutritionPlan = () => {
         <Table2 className="h-4 w-4" /> Edit full plan as table
       </Button>
 
-      <section className="mt-6">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Items for this lap
-        </h2>
-        <div className="space-y-2">
-          {items.length === 0 && (
-            <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
-              No items yet. Add some below.
-            </p>
-          )}
-          {items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
-              <span className="font-medium">{item.label}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                onClick={() => removeItem(item.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 flex gap-2">
-          <Input
-            value={newItem}
-            onChange={(e) => setNewItem(e.target.value)}
-            placeholder="Add item (e.g. SIS gel)"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") addItem(newItem);
-            }}
-          />
-          <Button onClick={() => addItem(newItem)} disabled={!newItem.trim()}>
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-
-      </section>
 
       <PlanOverview
         athleteId={athlete.id}
@@ -184,6 +127,7 @@ interface PlanOverviewProps {
 const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump, unit, cumulativeAt }: PlanOverviewProps) => {
   const nutritionItems = useRaceStore((s) => s.nutritionItems);
   const removeNutritionItem = useRaceStore((s) => s.removeNutritionItem);
+  const renameNutritionItem = useRaceStore((s) => s.renameNutritionItem);
 
   const athletePlans = plans
     .filter((p) => p.athleteId === athleteId && p.lapNumber <= totalLaps)
@@ -191,12 +135,30 @@ const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump, unit, c
   const nonEmpty = athletePlans.filter((p) => p.items.length > 0);
 
   // Items in use = the shared catalog (single source of truth, shared with the matrix editor)
-  const usedLabels = [...nutritionItems].sort();
+  const usedLabels = nutritionItems;
 
-  const removeLabelEverywhere = (label: string) => {
-    // Removes from the catalog AND from every plan in one shot.
-    removeNutritionItem(label);
-    toast.success(`Removed "${label}" from catalog and all laps`);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const startRename = (label: string) => {
+    setRenaming(label);
+    setRenameValue(label);
+  };
+  const commitRename = () => {
+    if (!renaming) return;
+    const trimmed = renameValue.trim();
+    if (!trimmed || trimmed === renaming) {
+      setRenaming(null);
+      return;
+    }
+    if (nutritionItems.includes(trimmed)) {
+      toast.error("That item already exists");
+      return;
+    }
+    renameNutritionItem(renaming, trimmed);
+    toast.success(`Renamed to "${trimmed}"`);
+    setRenaming(null);
   };
 
   return (
@@ -210,21 +172,90 @@ const PlanOverview = ({ athleteId, totalLaps, plans, currentLap, onJump, unit, c
             {usedLabels.map((label) => (
               <span
                 key={label}
-                className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary pl-3 pr-1 py-1 text-xs font-medium"
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary pl-1 pr-1 py-1 text-xs font-medium"
               >
-                {label}
-                <button
-                  onClick={() => removeLabelEverywhere(label)}
-                  className="ml-1 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
-                  title={`Remove "${label}" from all laps`}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
+                {renaming === label ? (
+                  <>
+                    <Input
+                      autoFocus
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitRename();
+                        if (e.key === "Escape") setRenaming(null);
+                      }}
+                      className="h-6 w-28 px-2 py-0 text-xs"
+                    />
+                    <button
+                      onClick={commitRename}
+                      className="ml-1 flex h-5 w-5 items-center justify-center rounded-full text-primary hover:bg-primary/20"
+                      title="Save"
+                    >
+                      <Check className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => setRenaming(null)}
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+                      title="Cancel"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => startRename(label)}
+                      className="pl-2 pr-1 hover:text-primary"
+                      title="Rename"
+                    >
+                      {label}
+                    </button>
+                    <button
+                      onClick={() => startRename(label)}
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+                      title="Rename"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(label)}
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+                      title={`Remove "${label}" from all laps`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </>
+                )}
               </span>
             ))}
           </div>
         </div>
       )}
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove "{confirmDelete}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove "{confirmDelete}" from the shared catalog and from every lap plan. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmDelete) {
+                  removeNutritionItem(confirmDelete);
+                  toast.success(`Removed "${confirmDelete}"`);
+                }
+                setConfirmDelete(null);
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div>
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">

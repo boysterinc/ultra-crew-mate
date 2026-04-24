@@ -133,6 +133,8 @@ interface RaceState {
   // shared nutrition catalog
   addNutritionItem: (label: string) => void;
   removeNutritionItem: (label: string) => void;
+  renameNutritionItem: (oldLabel: string, newLabel: string) => void;
+  reorderNutritionItems: (orderedLabels: string[]) => void;
 
   // settings
   setDoubleTapMinutes: (m: number) => void;
@@ -167,6 +169,27 @@ export const useRaceStore = create<RaceState>()(
             items: p.items.filter((it) => it.label !== label),
           })),
         })),
+      renameNutritionItem: (oldLabel, newLabel) => {
+        const trimmed = newLabel.trim();
+        if (!trimmed || oldLabel === trimmed) return;
+        set((s) => {
+          if (!s.nutritionItems.includes(oldLabel)) return s;
+          if (s.nutritionItems.includes(trimmed)) return s; // collision
+          return {
+            nutritionItems: s.nutritionItems.map((x) => (x === oldLabel ? trimmed : x)),
+            plans: s.plans.map((p) => ({
+              ...p,
+              items: p.items.map((it) => (it.label === oldLabel ? { ...it, label: trimmed } : it)),
+            })),
+          };
+        });
+      },
+      reorderNutritionItems: (orderedLabels) =>
+        set((s) => {
+          const known = orderedLabels.filter((l) => s.nutritionItems.includes(l));
+          const rest = s.nutritionItems.filter((l) => !known.includes(l));
+          return { nutritionItems: [...known, ...rest] };
+        }),
 
       addAthlete: (a) => {
         const athlete: Athlete = { ...a, id: uid(), createdAt: Date.now() };
