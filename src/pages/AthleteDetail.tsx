@@ -162,6 +162,82 @@ const AthleteDetail = () => {
     setEditLap(null);
   };
 
+  const exportCsv = () => {
+    if (laps.length === 0) {
+      toast.error("No laps to export");
+      return;
+    }
+    const csvEscape = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const headers = [
+      "Lap",
+      "Timestamp",
+      "Clock",
+      "LapTime(sec)",
+      "LapTime",
+      `Pace(sec/${athlete.unit})`,
+      `Pace`,
+      `LapDistance(${athlete.unit})`,
+      `Cumulative(${athlete.unit})`,
+      "Planned",
+      "Consumed",
+      "Skipped",
+    ];
+    const rows = laps.map((l) => {
+      const plan = planFor(athlete.id, l.lapNumber);
+      const log = logFor(athlete.id, l.lapNumber);
+      const planned = plan?.items.map((i) => i.label) ?? [];
+      const consumedIds = new Set(log?.completedItemIds ?? []);
+      const consumed = (plan?.items ?? []).filter((i) => consumedIds.has(i.id)).map((i) => i.label);
+      const skipped = (plan?.items ?? []).filter((i) => !consumedIds.has(i.id)).map((i) => i.label);
+      const lapDist = lapDistsUnit[l.lapNumber - 1] ?? athlete.lapDistance;
+      const cum = cumulativeAt(l.lapNumber);
+      return [
+        l.lapNumber,
+        l.timestamp,
+        formatClock(l.timestamp),
+        l.lapTime > 0 ? Math.round(l.lapTime) : "",
+        l.lapTime > 0 ? formatDuration(l.lapTime) : "",
+        l.pace > 0 ? Math.round(l.pace) : "",
+        l.pace > 0 ? formatPace(l.pace, athlete.unit) : "",
+        lapDist,
+        +cum.toFixed(3),
+        planned.join("; "),
+        consumed.join("; "),
+        skipped.join("; "),
+      ].map(csvEscape).join(",");
+    });
+
+    // Summary header lines (commented with #)
+    const meta = [
+      `# Athlete,${csvEscape(athlete.name)}`,
+      `# Unit,${athlete.unit}`,
+      `# Event,${csvEscape(event?.name ?? "")}`,
+      `# TotalLaps,${totalLaps}`,
+      `# CompletedLaps,${laps.length}`,
+      `# DistanceCovered(${athlete.unit}),${+distance.toFixed(3)}`,
+      `# AvgLapTime,${avgLapSec > 0 ? formatDuration(avgLapSec) : ""}`,
+      `# Projection,${projection ? `${projection.label}: ${projection.value}` : ""}`,
+      `# ExportedAt,${new Date().toISOString()}`,
+    ];
+
+    const csv = [...meta, headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const safeName = athlete.name.replace(/[^a-z0-9-_]+/gi, "_");
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    a.href = url;
+    a.download = `race-log_${safeName}_${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Log exported");
+  };
+
   return (
     <AppShell title={athlete.name}>
       <AthleteSwitcher athletes={athletes} selectedId={athlete.id} onSelect={selectAthlete} />
