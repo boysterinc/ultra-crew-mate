@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppShell from "@/components/AppShell";
-import { useRaceStore, newId } from "@/lib/store";
+import { useRaceStore } from "@/lib/store";
 import AthleteSwitcher from "@/components/AthleteSwitcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
