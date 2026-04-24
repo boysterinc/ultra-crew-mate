@@ -3,7 +3,7 @@ import AppShell from "@/components/AppShell";
 import { useRaceStore } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Trash2, ArrowRight, Plus, X, Pencil, Check } from "lucide-react";
+import { Trash2, ArrowRight, Plus, X, Pencil, Check, Download } from "lucide-react";
 import AthleteSwitcher from "@/components/AthleteSwitcher";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
