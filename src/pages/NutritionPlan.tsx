@@ -24,11 +24,6 @@ const NutritionPlan = () => {
   const allPlans = useRaceStore((s) => s.plans);
   const selectedId = useRaceStore((s) => s.selectedAthleteId);
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
-  const planFor = useRaceStore((s) => s.planFor);
-  const setPlan = useRaceStore((s) => s.setPlan);
-  const nutritionItems = useRaceStore((s) => s.nutritionItems);
-  const addNutritionItem = useRaceStore((s) => s.addNutritionItem);
-  const removeNutritionItem = useRaceStore((s) => s.removeNutritionItem);
   const navigate = useNavigate();
 
   const events = useRaceStore((s) => s.events);
@@ -36,7 +31,6 @@ const NutritionPlan = () => {
   const event = athlete?.eventId ? events.find((e) => e.id === athlete.eventId) : undefined;
   const totalLaps = athlete ? totalLapsFor(athlete, event) : 0;
   const [lapNumber, setLapNumber] = useState(1);
-  const [newItem, setNewItem] = useState("");
 
   // Per-lap distance offsets (athlete unit)
   const lapDistsUnit = athlete
@@ -47,12 +41,6 @@ const NutritionPlan = () => {
   const cumulativeAt = (n: number) =>
     lapDistsUnit.slice(0, Math.max(0, Math.min(n, lapDistsUnit.length))).reduce((s, d) => s + d, 0);
 
-  const plan = useMemo(
-    () => (athlete ? planFor(athlete.id, lapNumber) : undefined),
-    [athlete, lapNumber, planFor]
-  );
-  const items = plan?.items ?? [];
-
   if (!athlete) {
     return (
       <AppShell title="Nutrition">
@@ -62,21 +50,6 @@ const NutritionPlan = () => {
       </AppShell>
     );
   }
-
-  const addItem = (label: string) => {
-    const trimmed = label.trim();
-    if (!trimmed) return;
-    // Keep the shared catalog in sync so the matrix editor sees this item too.
-    addNutritionItem(trimmed);
-    if (!items.some((i) => i.label === trimmed)) {
-      setPlan(athlete.id, lapNumber, [...items, { id: newId(), label: trimmed }]);
-    }
-    setNewItem("");
-  };
-
-  const removeItem = (id: string) => {
-    setPlan(athlete.id, lapNumber, items.filter((i) => i.id !== id));
-  };
 
   return (
     <AppShell title="Nutrition">
