@@ -18,6 +18,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, X } from "lucide-react";
+import { formatPace } from "@/lib/format";
 
 const downscaleImage = (file: File, max = 128): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -179,66 +180,8 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
             <Label htmlFor="name">Name</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sam Carter" autoFocus />
           </div>
-          <div className="space-y-2">
-            <Label>Unit</Label>
-            <ToggleGroup
-              type="single"
-              value={unit}
-              onValueChange={(v) => v && setUnit(v as DistanceUnit)}
-              className="justify-start"
-            >
-              <ToggleGroupItem value="km" className="px-6">km</ToggleGroupItem>
-              <ToggleGroupItem value="mi" className="px-6">mi</ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="lap">Lap distance ({unit})</Label>
-              <Input
-                id="lap"
-                inputMode="decimal"
-                value={lapDistance}
-                onChange={(e) => setLapDistance(e.target.value)}
-                placeholder="6.7"
-              />
-            </div>
-            {!selectedEvent && (
-              <div className="space-y-2">
-                <Label htmlFor="target">Target ({unit})</Label>
-                <Input
-                  id="target"
-                  inputMode="decimal"
-                  value={targetDistance}
-                  onChange={(e) => setTargetDistance(e.target.value)}
-                  placeholder="100"
-                />
-              </div>
-            )}
-            {selectedEvent && (
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">Target ({unit})</Label>
-                <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm tabular">
-                  {derivedTarget > 0 ? derivedTarget.toFixed(2) : "—"}
-                </div>
-                <p className="text-[10px] text-muted-foreground">From event{selectedEvent.kind === "time" ? " goal" : ""}</p>
-              </div>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="alert">Alert before ETA (minutes)</Label>
-            <Input
-              id="alert"
-              inputMode="decimal"
-              value={alertMinutes}
-              onChange={(e) => setAlertMinutes(e.target.value)}
-              placeholder="3"
-            />
-            <p className="text-xs text-muted-foreground">
-              Notify when predicted arrival is within this many minutes. Set to 0 to disable.
-            </p>
-          </div>
 
-          <div className="space-y-2 border-t border-border pt-4">
+          <div className="space-y-2">
             <Label>Race event</Label>
             {sortedEvents.length === 0 ? (
               <p className="text-xs text-muted-foreground">
@@ -262,18 +205,32 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
                 </SelectContent>
               </Select>
             )}
-            {selectedEvent?.kind === "distance" && (
-              <div className="space-y-1.5 pt-1">
-                <Label htmlFor="goal-time" className="text-xs">Goal finish time (HH:MM)</Label>
-                <Input
-                  id="goal-time"
-                  inputMode="numeric"
-                  value={goalHM}
-                  onChange={(e) => setGoalHM(e.target.value)}
-                  placeholder="5:00"
-                />
-              </div>
-            )}
+            {selectedEvent?.kind === "distance" && (() => {
+              const goalMin = parseHM(goalHM);
+              const distKm = selectedEvent.distanceKm ?? 0;
+              const paceSecPerKm = goalMin > 0 && distKm > 0 ? (goalMin * 60) / distKm : 0;
+              const paceSecPerUnit = unit === "mi" ? paceSecPerKm * 1.609344 : paceSecPerKm;
+              return (
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="goal-time" className="text-xs">Goal finish time (HH:MM)</Label>
+                    <Input
+                      id="goal-time"
+                      inputMode="numeric"
+                      value={goalHM}
+                      onChange={(e) => setGoalHM(e.target.value)}
+                      placeholder="5:00"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Required pace</Label>
+                    <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm tabular">
+                      {paceSecPerUnit > 0 ? formatPace(paceSecPerUnit, unit) : "—"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
             {selectedEvent?.kind === "time" && (
               <div className="space-y-1.5 pt-1">
                 <Label htmlFor="goal-km" className="text-xs">Goal distance (km)</Label>
@@ -287,6 +244,64 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
               </div>
             )}
           </div>
+
+          <div className="space-y-2">
+            <Label>Unit</Label>
+            <ToggleGroup
+              type="single"
+              value={unit}
+              onValueChange={(v) => v && setUnit(v as DistanceUnit)}
+              className="justify-start"
+            >
+              <ToggleGroupItem value="km" className="px-6">km</ToggleGroupItem>
+              <ToggleGroupItem value="mi" className="px-6">mi</ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="lap">Lap ({unit})</Label>
+              <Input
+                id="lap"
+                inputMode="decimal"
+                value={lapDistance}
+                onChange={(e) => setLapDistance(e.target.value)}
+                placeholder="6.7"
+              />
+            </div>
+            {!selectedEvent ? (
+              <div className="space-y-2">
+                <Label htmlFor="target">Target ({unit})</Label>
+                <Input
+                  id="target"
+                  inputMode="decimal"
+                  value={targetDistance}
+                  onChange={(e) => setTargetDistance(e.target.value)}
+                  placeholder="100"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Target ({unit})</Label>
+                <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm tabular">
+                  {derivedTarget > 0 ? derivedTarget.toFixed(2) : "—"}
+                </div>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="alert">Alert (min)</Label>
+              <Input
+                id="alert"
+                inputMode="decimal"
+                value={alertMinutes}
+                onChange={(e) => setAlertMinutes(e.target.value)}
+                placeholder="3"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground -mt-2">
+            Notify when predicted arrival is within this many minutes. Set to 0 to disable.
+          </p>
 
           {previewLaps > 0 && (
             <div className="rounded-xl bg-secondary/60 p-3 text-sm">
