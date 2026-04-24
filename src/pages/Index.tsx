@@ -5,6 +5,7 @@ import { Plus, Activity, GripVertical } from "lucide-react";
 import AthleteCard from "@/components/AthleteCard";
 import AthleteFormDialog from "@/components/AthleteFormDialog";
 import SettingsButton from "@/components/SettingsButton";
+import WeatherWidget from "@/components/WeatherWidget";
 import { useRaceStore } from "@/lib/store";
 import { Athlete, RaceEvent } from "@/lib/types";
 import { formatHM } from "@/lib/format";
@@ -126,6 +127,9 @@ const Index = () => {
         </div>
       }
     >
+      <div className="mb-3">
+        <WeatherWidget />
+      </div>
       {athletes.length === 0 ? (
         <div className="mt-12 flex flex-col items-center justify-center rounded-2xl border border-dashed border-border p-10 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl gradient-primary shadow-glow">
