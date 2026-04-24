@@ -127,46 +127,6 @@ const NutritionPlan = () => {
         <Table2 className="h-4 w-4" /> Edit full plan as table
       </Button>
 
-      <section className="mt-6">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Items for this lap
-        </h2>
-        <div className="space-y-2">
-          {items.length === 0 && (
-            <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
-              No items yet. Add some below.
-            </p>
-          )}
-          {items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
-              <span className="font-medium">{item.label}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                onClick={() => removeItem(item.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 flex gap-2">
-          <Input
-            value={newItem}
-            onChange={(e) => setNewItem(e.target.value)}
-            placeholder="Add item (e.g. SIS gel)"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") addItem(newItem);
-            }}
-          />
-          <Button onClick={() => addItem(newItem)} disabled={!newItem.trim()}>
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-
-      </section>
 
       <PlanOverview
         athleteId={athlete.id}
