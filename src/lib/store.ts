@@ -133,6 +133,8 @@ interface RaceState {
   // shared nutrition catalog
   addNutritionItem: (label: string) => void;
   removeNutritionItem: (label: string) => void;
+  renameNutritionItem: (oldLabel: string, newLabel: string) => void;
+  reorderNutritionItems: (orderedLabels: string[]) => void;
 
   // settings
   setDoubleTapMinutes: (m: number) => void;
