@@ -104,11 +104,13 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-          <h2 className={cn("font-bold leading-tight truncate", compact ? "text-[13px]" : "text-lg")}>{athlete.name}</h2>
-          <p className={cn("text-muted-foreground tabular flex items-center gap-1.5 flex-wrap", compact ? "text-[10px]" : "text-xs")}>
-            <span>
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className={cn("font-bold leading-tight truncate", compact ? "text-[13px] sm:text-sm md:text-base" : "text-lg md:text-xl")}>{athlete.name}</h2>
+            <span className={cn("tabular shrink-0 text-muted-foreground", compact ? "text-[11px] sm:text-xs md:text-sm" : "text-sm md:text-base")}>
               <span className="text-foreground font-semibold">{lapsDone}</span>/{totalLaps}
             </span>
+          </div>
+          <p className={cn("text-muted-foreground tabular flex items-center gap-1.5 flex-wrap", compact ? "text-[10px]" : "text-xs")}>
             {athlete.alertMinutes > 0 && (
               <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-wider">
                 <Bell className="h-2.5 w-2.5" /> {athlete.alertMinutes}m
