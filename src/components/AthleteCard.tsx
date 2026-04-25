@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Athlete, RaceEvent } from "@/lib/types";
 import { useRaceStore } from "@/lib/store";
 import { totalLapsFor, distanceCovered, avgRecentLapTime, nextEta, goalLapTime } from "@/lib/race";
-import { formatDuration, formatPace, formatShortClock, formatDistance, formatHM } from "@/lib/format";
+import { formatPace, formatShortClock, formatDistance, formatHM } from "@/lib/format";
 import CheckpointButton from "./CheckpointButton";
 import { Progress } from "@/components/ui/progress";
 import { ChevronRight, Trash2, Pencil, Bell, GripVertical } from "lucide-react";
@@ -104,11 +104,13 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-          <h2 className={cn("font-bold leading-tight truncate", compact ? "text-[13px]" : "text-lg")}>{athlete.name}</h2>
-          <p className={cn("text-muted-foreground tabular flex items-center gap-1.5 flex-wrap", compact ? "text-[10px]" : "text-xs")}>
-            <span>
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className={cn("font-bold leading-tight truncate", compact ? "text-[13px] sm:text-sm md:text-base" : "text-lg md:text-xl")}>{athlete.name}</h2>
+            <span className={cn("tabular shrink-0 text-muted-foreground", compact ? "text-[11px] sm:text-xs md:text-sm" : "text-sm md:text-base")}>
               <span className="text-foreground font-semibold">{lapsDone}</span>/{totalLaps}
             </span>
+          </div>
+          <p className={cn("text-muted-foreground tabular flex items-center gap-1.5 flex-wrap", compact ? "text-[10px]" : "text-xs")}>
             {athlete.alertMinutes > 0 && (
               <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-wider">
                 <Bell className="h-2.5 w-2.5" /> {athlete.alertMinutes}m
@@ -154,8 +156,7 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
         </div>
       </div>
 
-      <dl className={cn("grid grid-cols-3 text-center", compact ? "gap-1 px-2.5 pt-1.5" : "gap-2 px-5 pt-4")}>
-        <Stat label={compact ? "Last" : "Last lap"} value={last && last.lapTime > 0 ? formatDuration(last.lapTime) : "—"} compact={compact} />
+      <dl className={cn("grid grid-cols-2 text-center", compact ? "gap-1 px-2.5 pt-1.5" : "gap-2 px-5 pt-4")}>
         <Stat label={compact ? "Pace" : "Avg pace"} value={avg > 0 ? formatPace(avg / athlete.lapDistance, athlete.unit) : "—"} compact={compact} />
         <Stat
           label={isOverdue ? (compact ? "Late" : "ETA (late)") : (compact ? "ETA" : "Next ETA")}
@@ -217,11 +218,11 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
 
 const Stat = ({ label, value, tone = "default", compact = false }: { label: string; value: string; tone?: "default" | "warning" | "destructive"; compact?: boolean }) => (
   <div className="min-w-0">
-    <p className={cn("font-semibold uppercase tracking-wider text-muted-foreground truncate", compact ? "text-[9px]" : "text-[10px]")}>{label}</p>
+    <p className={cn("font-semibold uppercase tracking-wider text-muted-foreground truncate", compact ? "text-[9px] sm:text-[10px] md:text-[11px]" : "text-[10px] md:text-xs")}>{label}</p>
     <p
       className={cn(
         "tabular font-bold leading-tight truncate",
-        compact ? "text-[12px]" : "text-base",
+        compact ? "text-[12px] sm:text-sm md:text-base lg:text-lg" : "text-base md:text-lg lg:text-xl",
         tone === "warning" && "text-warning",
         tone === "destructive" && "text-destructive"
       )}
