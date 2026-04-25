@@ -156,8 +156,7 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
         </div>
       </div>
 
-      <dl className={cn("grid grid-cols-3 text-center", compact ? "gap-1 px-2.5 pt-1.5" : "gap-2 px-5 pt-4")}>
-        <Stat label={compact ? "Last" : "Last lap"} value={last && last.lapTime > 0 ? formatDuration(last.lapTime) : "—"} compact={compact} />
+      <dl className={cn("grid grid-cols-2 text-center", compact ? "gap-1 px-2.5 pt-1.5" : "gap-2 px-5 pt-4")}>
         <Stat label={compact ? "Pace" : "Avg pace"} value={avg > 0 ? formatPace(avg / athlete.lapDistance, athlete.unit) : "—"} compact={compact} />
         <Stat
           label={isOverdue ? (compact ? "Late" : "ETA (late)") : (compact ? "ETA" : "Next ETA")}
