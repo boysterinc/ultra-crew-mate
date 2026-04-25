@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Athlete, RaceEvent } from "@/lib/types";
 import { useRaceStore } from "@/lib/store";
 import { totalLapsFor, distanceCovered, avgRecentLapTime, nextEta, goalLapTime } from "@/lib/race";
-import { formatDuration, formatPace, formatShortClock, formatDistance, formatHM } from "@/lib/format";
+import { formatPace, formatShortClock, formatDistance, formatHM } from "@/lib/format";
 import CheckpointButton from "./CheckpointButton";
 import { Progress } from "@/components/ui/progress";
 import { ChevronRight, Trash2, Pencil, Bell, GripVertical } from "lucide-react";
