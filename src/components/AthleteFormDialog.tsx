@@ -69,6 +69,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   const [eventId, setEventId] = useState<string | undefined>(undefined);
   const [goalDistanceKm, setGoalDistanceKm] = useState("");
   const [goalHM, setGoalHM] = useState("");
+  const [paceMS, setPaceMS] = useState(""); // "MM:SS" required pace per unit
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -83,6 +84,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       setGoalDistanceKm(athlete?.goalDistanceKm ? String(athlete.goalDistanceKm) : "");
       const m = athlete?.goalDurationMinutes ?? 0;
       setGoalHM(m > 0 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : "");
+      setPaceMS("");
     }
   }, [open, athlete]);
 
