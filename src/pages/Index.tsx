@@ -126,6 +126,7 @@ const Index = () => {
           </Button>
         </div>
       }
+    >
       {athletes.length === 0 ? (
         <div className="mt-12 flex flex-col items-center justify-center rounded-2xl border border-dashed border-border p-10 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl gradient-primary shadow-glow">
