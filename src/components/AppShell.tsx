@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import BottomNav from "./BottomNav";
+import WeatherWidget from "./WeatherWidget";
 
 interface AppShellProps {
   title: string;
@@ -17,7 +18,7 @@ const AppShell = ({ title, action, children, wide = false }: AppShellProps) => {
         className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
-        <div className={`mx-auto flex ${maxW} items-center justify-between px-4 py-3`}>
+        <div className={`mx-auto flex ${maxW} items-center justify-between px-4 py-3 gap-2`}>
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">Ultra Crew</p>
             <h1 className="text-xl font-bold tracking-tight">{title}</h1>
@@ -32,6 +33,9 @@ const AppShell = ({ title, action, children, wide = false }: AppShellProps) => {
                 Runner x Therapist
               </a>
             </p>
+          </div>
+          <div className="hidden md:flex flex-1 justify-center min-w-0 px-2">
+            <WeatherWidget compact />
           </div>
           {action}
         </div>

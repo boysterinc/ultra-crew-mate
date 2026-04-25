@@ -23,7 +23,7 @@ const codeToIcon = (code: number) => {
   return { Icon: Cloud, label: "—" };
 };
 
-const WeatherWidget = () => {
+const WeatherWidget = ({ compact = false }: { compact?: boolean }) => {
   const [data, setData] = useState<WeatherData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,6 +103,20 @@ const WeatherWidget = () => {
   }
 
   const { Icon, label } = codeToIcon(data.code);
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-1.5 rounded-xl border border-border bg-card/40 px-2 py-1">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary">
+          <Icon className="h-4 w-4 text-primary" />
+        </div>
+        <div className="flex items-baseline gap-1">
+          <span className="text-sm font-bold tabular leading-none">{data.temp}°</span>
+          <span className="text-[10px] text-muted-foreground">{label}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-border bg-card/40 px-3 py-2">
