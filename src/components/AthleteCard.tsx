@@ -218,11 +218,11 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
 
 const Stat = ({ label, value, tone = "default", compact = false }: { label: string; value: string; tone?: "default" | "warning" | "destructive"; compact?: boolean }) => (
   <div className="min-w-0">
-    <p className={cn("font-semibold uppercase tracking-wider text-muted-foreground truncate", compact ? "text-[9px]" : "text-[10px]")}>{label}</p>
+    <p className={cn("font-semibold uppercase tracking-wider text-muted-foreground truncate", compact ? "text-[9px] sm:text-[10px] md:text-[11px]" : "text-[10px] md:text-xs")}>{label}</p>
     <p
       className={cn(
         "tabular font-bold leading-tight truncate",
-        compact ? "text-[12px]" : "text-base",
+        compact ? "text-[12px] sm:text-sm md:text-base lg:text-lg" : "text-base md:text-lg lg:text-xl",
         tone === "warning" && "text-warning",
         tone === "destructive" && "text-destructive"
       )}
