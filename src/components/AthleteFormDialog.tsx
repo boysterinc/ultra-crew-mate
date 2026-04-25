@@ -208,27 +208,67 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
               </Select>
             )}
             {selectedEvent?.kind === "distance" && (() => {
-              const goalMin = parseHM(goalHM);
               const distKm = selectedEvent.distanceKm ?? 0;
-              const paceSecPerKm = goalMin > 0 && distKm > 0 ? (goalMin * 60) / distKm : 0;
-              const paceSecPerUnit = unit === "mi" ? paceSecPerKm * 1.609344 : paceSecPerKm;
+              const distInUnit = unit === "mi" ? distKm / 1.609344 : distKm;
+
+              // Parse current pace input (MM:SS per unit)
+              const parseMS = (s: string): number => {
+                const m = s.match(/^(\d+):(\d{1,2})$/);
+                if (!m) return 0;
+                return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+              };
+              const fmtMS = (sec: number): string => {
+                if (!sec || sec <= 0) return "";
+                const m = Math.floor(sec / 60);
+                const s = Math.round(sec - m * 60);
+                return `${m}:${String(s).padStart(2, "0")}`;
+              };
+
+              const onPaceChange = (v: string) => {
+                setPaceMS(v);
+                const secPerUnit = parseMS(v);
+                if (secPerUnit > 0 && distInUnit > 0) {
+                  const totalMin = (secPerUnit * distInUnit) / 60;
+                  const hh = Math.floor(totalMin / 60);
+                  const mm = Math.round(totalMin - hh * 60);
+                  setGoalHM(`${hh}:${String(mm).padStart(2, "0")}`);
+                }
+              };
+              const onGoalChange = (v: string) => {
+                setGoalHM(v);
+                const goalMin = parseHM(v);
+                if (goalMin > 0 && distInUnit > 0) {
+                  const secPerUnit = (goalMin * 60) / distInUnit;
+                  setPaceMS(fmtMS(secPerUnit));
+                }
+              };
+
+              // Display pace: prefer user input, otherwise derive from goal
+              const goalMin = parseHM(goalHM);
+              const derivedPaceSec = goalMin > 0 && distInUnit > 0 ? (goalMin * 60) / distInUnit : 0;
+              const paceValue = paceMS || (derivedPaceSec > 0 ? fmtMS(derivedPaceSec) : "");
+
               return (
                 <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pace-input" className="text-xs">Required pace (MM:SS / {unit})</Label>
+                    <Input
+                      id="pace-input"
+                      inputMode="numeric"
+                      value={paceValue}
+                      onChange={(e) => onPaceChange(e.target.value)}
+                      placeholder="5:30"
+                    />
+                  </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="goal-time" className="text-xs">Goal finish time (HH:MM)</Label>
                     <Input
                       id="goal-time"
                       inputMode="numeric"
                       value={goalHM}
-                      onChange={(e) => setGoalHM(e.target.value)}
+                      onChange={(e) => onGoalChange(e.target.value)}
                       placeholder="5:00"
                     />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Required pace</Label>
-                    <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm tabular">
-                      {paceSecPerUnit > 0 ? formatPace(paceSecPerUnit, unit) : "—"}
-                    </div>
                   </div>
                 </div>
               );
