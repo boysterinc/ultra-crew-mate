@@ -211,11 +211,15 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
               const distKm = selectedEvent.distanceKm ?? 0;
               const distInUnit = unit === "mi" ? distKm / 1.609344 : distKm;
 
-              // Parse current pace input (MM:SS per unit)
+              // Parse pace input: accepts "MM:SS", "MM", or "MM.S" (decimal minutes)
               const parseMS = (s: string): number => {
-                const m = s.match(/^(\d+):(\d{1,2})$/);
-                if (!m) return 0;
-                return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+                if (!s) return 0;
+                const trimmed = s.trim();
+                const colon = trimmed.match(/^(\d+):(\d{1,2})$/);
+                if (colon) return parseInt(colon[1], 10) * 60 + parseInt(colon[2], 10);
+                const dec = parseFloat(trimmed);
+                if (!isNaN(dec) && dec > 0) return dec * 60;
+                return 0;
               };
               const fmtMS = (sec: number): string => {
                 if (!sec || sec <= 0) return "";
@@ -224,15 +228,21 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
                 return `${m}:${String(s).padStart(2, "0")}`;
               };
 
-              const onPaceChange = (v: string) => {
-                setPaceMS(v);
-                const secPerUnit = parseMS(v);
+              const recomputeGoalFromPace = (paceStr: string) => {
+                const secPerUnit = parseMS(paceStr);
                 if (secPerUnit > 0 && distInUnit > 0) {
                   const totalMin = (secPerUnit * distInUnit) / 60;
                   const hh = Math.floor(totalMin / 60);
                   const mm = Math.round(totalMin - hh * 60);
                   setGoalHM(`${hh}:${String(mm).padStart(2, "0")}`);
+                } else {
+                  setGoalHM("");
                 }
+              };
+
+              const onPaceChange = (v: string) => {
+                setPaceMS(v);
+                recomputeGoalFromPace(v);
               };
               const onGoalChange = (v: string) => {
                 setGoalHM(v);
@@ -246,7 +256,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
               // Display pace: prefer user input, otherwise derive from goal
               const goalMin = parseHM(goalHM);
               const derivedPaceSec = goalMin > 0 && distInUnit > 0 ? (goalMin * 60) / distInUnit : 0;
-              const paceValue = paceMS || (derivedPaceSec > 0 ? fmtMS(derivedPaceSec) : "");
+              const paceValue = paceMS !== "" ? paceMS : (derivedPaceSec > 0 ? fmtMS(derivedPaceSec) : "");
 
               return (
                 <div className="grid grid-cols-2 gap-3 pt-1">
