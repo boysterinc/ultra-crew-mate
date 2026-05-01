@@ -127,6 +127,7 @@ interface RaceState {
   setPlan: (athleteId: string, lapNumber: number, items: NutritionPlan["items"]) => void;
   duplicatePlanToRange: (athleteId: string, fromLap: number, toStart: number, toEnd: number) => void;
   toggleLogItem: (athleteId: string, lapNumber: number, itemId: string) => void;
+  toggleSkipItem: (athleteId: string, lapNumber: number, itemId: string) => void;
   planFor: (athleteId: string, lapNumber: number) => NutritionPlan | undefined;
   logFor: (athleteId: string, lapNumber: number) => NutritionLog | undefined;
 
@@ -394,6 +395,31 @@ export const useRaceStore = create<RaceState>()(
             completedItemIds: has
               ? existing.completedItemIds.filter((i) => i !== itemId)
               : [...existing.completedItemIds, itemId],
+          };
+          return {
+            logs: s.logs.map((l) =>
+              l.athleteId === athleteId && l.lapNumber === lapNumber ? updated : l
+            ),
+          };
+        }),
+      toggleSkipItem: (athleteId, lapNumber, itemId) =>
+        set((s) => {
+          const existing = s.logs.find((l) => l.athleteId === athleteId && l.lapNumber === lapNumber);
+          if (!existing) {
+            return {
+              logs: [
+                ...s.logs,
+                { athleteId, lapNumber, completedItemIds: [], skippedItemIds: [itemId] },
+              ],
+            };
+          }
+          const current = existing.skippedItemIds ?? [];
+          const has = current.includes(itemId);
+          const updated: NutritionLog = {
+            ...existing,
+            skippedItemIds: has
+              ? current.filter((i) => i !== itemId)
+              : [...current, itemId],
           };
           return {
             logs: s.logs.map((l) =>
