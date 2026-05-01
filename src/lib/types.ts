@@ -30,6 +30,9 @@ export interface Athlete {
   goalDistanceKm?: number; // when assigned event is "time"
   goalDurationMinutes?: number; // when assigned event is "distance"
   dashboardOrder?: number;
+  // DNF (did not finish) — when true the athlete is treated as finished even
+  // if they have not completed all laps / the event time has not elapsed.
+  dnf?: boolean;
 }
 
 export interface Lap {
@@ -55,7 +58,12 @@ export interface NutritionPlan {
 export interface NutritionLog {
   athleteId: string;
   lapNumber: number;
+  // Items the athlete actually consumed. Kept for backward compatibility but
+  // no longer the source of truth for the dashboard pills, which now default
+  // to "received" and only track explicit skips via skippedItemIds.
   completedItemIds: string[];
+  // Items the crew explicitly marked as NOT received.
+  skippedItemIds?: string[];
 }
 
 export interface Settings {
