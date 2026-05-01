@@ -18,8 +18,8 @@ const AppShell = ({ title, action, children, wide = false }: AppShellProps) => {
         className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
-        <div className={`mx-auto flex ${maxW} items-center justify-between px-4 py-3 gap-2`}>
-          <div className="min-w-0">
+        <div className={`mx-auto grid ${maxW} grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 py-3`}>
+          <div className="min-w-0 justify-self-start">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">Ultra Crew</p>
             <h1 className="text-xl font-bold tracking-tight">{title}</h1>
             <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
@@ -34,10 +34,12 @@ const AppShell = ({ title, action, children, wide = false }: AppShellProps) => {
               </a>
             </p>
           </div>
-          <div className="hidden md:flex flex-1 justify-center min-w-0 px-2">
+          <div className="justify-self-center min-w-0">
             <WeatherWidget compact />
           </div>
-          {action}
+          <div className="justify-self-end flex items-center gap-1">
+            {action}
+          </div>
         </div>
       </header>
       <main className={`mx-auto ${maxW} ${mainPad} pt-4 safe-bottom animate-fade-in`}>{children}</main>
