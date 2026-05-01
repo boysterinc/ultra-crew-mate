@@ -54,7 +54,7 @@ const UpcomingArrivals = () => {
       <h2 className="mb-1.5 px-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
         Upcoming arrivals
       </h2>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 sm:gap-3">
+      <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-8">
         {upcoming.map(({ athlete, msLeft }) => {
           const minutes = Math.max(0, Math.ceil(msLeft / 60_000));
           const overdue = msLeft < -10_000;
