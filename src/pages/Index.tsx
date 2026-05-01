@@ -148,6 +148,8 @@ const Index = () => {
           </Button>
         </div>
       ) : (
+        <>
+        <UpcomingArrivals />
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onGroupDragEnd}>
           <SortableContext items={sortableGroupIds} strategy={verticalListSortingStrategy}>
             <div className="space-y-5">
