@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, HTMLAttributes } from "react";
 import { useNavigate } from "react-router-dom";
 import { Athlete, RaceEvent } from "@/lib/types";
 import { useRaceStore } from "@/lib/store";
-import { totalLapsFor, distanceCovered, avgRecentLapTime, nextEta, goalLapTime } from "@/lib/race";
+import { totalLapsFor, distanceCovered, avgRecentLapTime, nextEta, goalLapTime, isAthleteFinished } from "@/lib/race";
 import { formatPace, formatShortClock, formatDistance, formatHM } from "@/lib/format";
 import CheckpointButton from "./CheckpointButton";
 import { Progress } from "@/components/ui/progress";
@@ -29,7 +29,7 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
   );
   const planFor = useRaceStore((s) => s.planFor);
   const logFor = useRaceStore((s) => s.logFor);
-  const toggleLogItem = useRaceStore((s) => s.toggleLogItem);
+  const toggleSkipItem = useRaceStore((s) => s.toggleSkipItem);
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const events = useRaceStore((s) => s.events);
   const event: RaceEvent | undefined = athlete.eventId ? events.find((e) => e.id === athlete.eventId) : undefined;
@@ -43,7 +43,7 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
 
   const totalLaps = totalLapsFor(athlete, event);
   const lapsDone = laps.length;
-  const finished = lapsDone >= totalLaps;
+  const finished = isAthleteFinished(athlete, laps, event);
   const last = laps[laps.length - 1];
   const measuredAvg = avgRecentLapTime(laps);
   const goalLap = goalLapTime(athlete, event, lapsDone);
@@ -181,20 +181,21 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
           <div className={cn("mt-1 flex flex-wrap", compact ? "gap-1" : "gap-1.5")}>
             {nextPlan.items.map((it) => {
               const log = logFor(athlete.id, nextLapNumber);
-              const done = !!log?.completedItemIds.includes(it.id);
+              const skipped = !!log?.skippedItemIds?.includes(it.id);
+              const received = !skipped; // default to received
               return (
                 <button
                   key={it.id}
                   onClick={(e) => {
                     e.stopPropagation();
-                    toggleLogItem(athlete.id, nextLapNumber, it.id);
+                    toggleSkipItem(athlete.id, nextLapNumber, it.id);
                   }}
                   className={cn(
                     "rounded-full border font-medium transition-colors",
                     compact ? "px-2 py-1 text-sm sm:text-base md:text-lg lg:text-xl leading-tight" : "px-3 py-1 text-base md:text-lg lg:text-xl",
-                    done
-                      ? "border-primary bg-primary text-primary-foreground line-through opacity-70"
-                      : "border-border bg-card text-foreground hover:border-primary/60"
+                    received
+                      ? "border-success bg-success text-success-foreground"
+                      : "border-border bg-card text-muted-foreground line-through hover:border-primary/60"
                   )}
                 >
                   {it.label}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRaceStore } from "@/lib/store";
-import { totalLapsFor, nextEta } from "@/lib/race";
+import { isAthleteFinished, nextEta } from "@/lib/race";
 import { cn } from "@/lib/utils";
 
 const initial = (name: string) => (name.trim()[0] || "?").toUpperCase();
@@ -29,8 +29,7 @@ const UpcomingArrivals = () => {
           .filter((l) => l.athleteId === a.id)
           .sort((x, y) => x.lapNumber - y.lapNumber);
         const event = a.eventId ? events.find((e) => e.id === a.eventId) : undefined;
-        const total = totalLapsFor(a, event);
-        const finished = laps.length >= total;
+        const finished = isAthleteFinished(a, laps, event);
         const eta = nextEta(laps, a, event);
         if (!eta || finished) return null;
         const msLeft = eta - now;
