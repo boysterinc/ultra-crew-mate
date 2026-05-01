@@ -191,7 +191,7 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
                   }}
                   className={cn(
                     "rounded-full border font-medium transition-colors",
-                    compact ? "px-1.5 py-0.5 text-[10px] leading-tight" : "px-2.5 py-0.5 text-xs",
+                    compact ? "px-2 py-1 text-sm sm:text-base md:text-lg lg:text-xl leading-tight" : "px-3 py-1 text-base md:text-lg lg:text-xl",
                     done
                       ? "border-primary bg-primary text-primary-foreground line-through opacity-70"
                       : "border-border bg-card text-foreground hover:border-primary/60"
