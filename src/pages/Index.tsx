@@ -6,6 +6,7 @@ import AthleteCard from "@/components/AthleteCard";
 import AthleteFormDialog from "@/components/AthleteFormDialog";
 import SettingsButton from "@/components/SettingsButton";
 import WeatherWidget from "@/components/WeatherWidget";
+import UpcomingArrivals from "@/components/UpcomingArrivals";
 import { useRaceStore } from "@/lib/store";
 import { Athlete, RaceEvent } from "@/lib/types";
 import { formatHM } from "@/lib/format";
