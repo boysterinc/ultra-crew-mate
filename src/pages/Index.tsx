@@ -6,6 +6,7 @@ import AthleteCard from "@/components/AthleteCard";
 import AthleteFormDialog from "@/components/AthleteFormDialog";
 import SettingsButton from "@/components/SettingsButton";
 import WeatherWidget from "@/components/WeatherWidget";
+import UpcomingArrivals from "@/components/UpcomingArrivals";
 import { useRaceStore } from "@/lib/store";
 import { Athlete, RaceEvent } from "@/lib/types";
 import { formatHM } from "@/lib/format";
@@ -147,6 +148,8 @@ const Index = () => {
           </Button>
         </div>
       ) : (
+        <>
+        <UpcomingArrivals />
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onGroupDragEnd}>
           <SortableContext items={sortableGroupIds} strategy={verticalListSortingStrategy}>
             <div className="space-y-5">
@@ -178,6 +181,7 @@ const Index = () => {
             </div>
           </SortableContext>
         </DndContext>
+        </>
       )}
 
       <AthleteFormDialog open={formOpen} onOpenChange={setFormOpen} athlete={editing} />
