@@ -105,19 +105,21 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
           </Avatar>
           <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 min-w-0">
-            <h2 className={cn("font-bold leading-tight truncate", compact ? "text-[13px] sm:text-sm md:text-base" : "text-lg md:text-xl")}>{athlete.name}</h2>
-            <span className={cn("tabular shrink-0 text-muted-foreground", compact ? "text-[11px] sm:text-xs md:text-sm" : "text-sm md:text-base")}>
+            <h2 className={cn("font-bold leading-tight truncate flex-1 min-w-0", compact ? "text-base sm:text-lg md:text-xl lg:text-2xl" : "text-xl md:text-2xl lg:text-3xl")}>{athlete.name}</h2>
+            <span className={cn("tabular shrink-0 text-muted-foreground", compact ? "text-sm sm:text-base md:text-lg lg:text-xl" : "text-base md:text-lg lg:text-xl")}>
               <span className="text-foreground font-semibold">{lapsDone}</span>/{totalLaps}
             </span>
-          </div>
-          <p className={cn("text-muted-foreground tabular flex items-center gap-1.5 flex-wrap", compact ? "text-[10px]" : "text-xs")}>
             {athlete.alertMinutes > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-wider">
-                <Bell className="h-2.5 w-2.5" /> {athlete.alertMinutes}m
+              <span className="inline-flex items-center gap-0.5 shrink-0 rounded-full bg-destructive/15 text-destructive px-1.5 py-0.5 text-[10px] sm:text-xs font-semibold">
+                <Bell className="h-3 w-3" /> {athlete.alertMinutes}m
               </span>
             )}
-            {finished && <span className="rounded-full bg-success/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-success">Done</span>}
-          </p>
+          </div>
+          {finished && (
+            <p className="mt-0.5">
+              <span className="rounded-full bg-success/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-success">Done</span>
+            </p>
+          )}
           </div>
         </button>
         <div className="flex gap-0.5 shrink-0">
@@ -189,7 +191,7 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
                   }}
                   className={cn(
                     "rounded-full border font-medium transition-colors",
-                    compact ? "px-1.5 py-0.5 text-[10px] leading-tight" : "px-2.5 py-0.5 text-xs",
+                    compact ? "px-2 py-1 text-sm sm:text-base md:text-lg lg:text-xl leading-tight" : "px-3 py-1 text-base md:text-lg lg:text-xl",
                     done
                       ? "border-primary bg-primary text-primary-foreground line-through opacity-70"
                       : "border-border bg-card text-foreground hover:border-primary/60"
@@ -217,12 +219,12 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
 };
 
 const Stat = ({ label, value, tone = "default", compact = false }: { label: string; value: string; tone?: "default" | "warning" | "destructive"; compact?: boolean }) => (
-  <div className="min-w-0 flex items-baseline gap-1">
+  <div className="min-w-0 flex flex-col items-center sm:flex-row sm:items-baseline sm:justify-center gap-0.5 sm:gap-1">
     <span className={cn("text-muted-foreground font-medium uppercase tracking-wider truncate", compact ? "text-[9px] sm:text-[10px] md:text-[11px]" : "text-[10px] md:text-xs")}>{label}</span>
     <span
       className={cn(
-        "tabular font-bold leading-tight truncate shrink-0",
-        compact ? "text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl" : "text-2xl md:text-3xl lg:text-4xl",
+        "tabular font-bold leading-tight truncate",
+        compact ? "text-sm sm:text-lg md:text-xl lg:text-2xl xl:text-3xl" : "text-xl sm:text-2xl md:text-3xl lg:text-4xl",
         tone === "warning" && "text-warning",
         tone === "destructive" && "text-destructive"
       )}
