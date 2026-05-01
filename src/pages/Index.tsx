@@ -181,6 +181,7 @@ const Index = () => {
             </div>
           </SortableContext>
         </DndContext>
+        </>
       )}
 
       <AthleteFormDialog open={formOpen} onOpenChange={setFormOpen} athlete={editing} />
