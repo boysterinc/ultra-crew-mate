@@ -28,6 +28,23 @@ export function totalLapsFor(a: Athlete, event?: RaceEvent | null): number {
   return Math.max(1, Math.ceil(a.targetDistance / a.lapDistance));
 }
 
+/**
+ * Returns true when an athlete should be treated as finished.
+ *  - Manually marked DNF
+ *  - Completed all required laps
+ *  - Time-based event whose duration has elapsed since the first lap (start)
+ */
+export function isAthleteFinished(a: Athlete, laps: Lap[], event?: RaceEvent | null): boolean {
+  if (a.dnf) return true;
+  const total = totalLapsFor(a, event);
+  if (total > 0 && laps.length >= total) return true;
+  if (event?.kind === "time" && event.durationMinutes && laps.length > 0) {
+    const start = laps[0].timestamp;
+    if (Date.now() - start >= event.durationMinutes * 60_000) return true;
+  }
+  return false;
+}
+
 export function distanceCovered(a: Athlete, lapsCount: number, event?: RaceEvent | null): number {
   const dists = lapDistancesFor(a, event);
   if (dists.length === 0) return Math.min(a.targetDistance, lapsCount * a.lapDistance);
