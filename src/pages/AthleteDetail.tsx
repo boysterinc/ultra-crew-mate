@@ -54,6 +54,7 @@ const AthleteDetail = () => {
   const planFor = useRaceStore((s) => s.planFor);
   const logFor = useRaceStore((s) => s.logFor);
   const toggleLogItem = useRaceStore((s) => s.toggleLogItem);
+  const updateAthlete = useRaceStore((s) => s.updateAthlete);
 
   const [manualOpen, setManualOpen] = useState(false);
   const [manualDate, setManualDate] = useState("");
@@ -491,6 +492,30 @@ const AthleteDetail = () => {
             );
           })}
         </div>
+      </section>
+
+      <section className="mt-8">
+        <Button
+          variant={athlete.dnf ? "secondary" : "destructive"}
+          size="lg"
+          className="w-full"
+          onClick={() => {
+            const next = !athlete.dnf;
+            updateAthlete(athlete.id, { dnf: next });
+            toast.success(
+              next
+                ? `${athlete.name} marked as Did Not Finish`
+                : `${athlete.name} returned to race`
+            );
+          }}
+        >
+          {athlete.dnf ? "Return to race" : "Did not finish"}
+        </Button>
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+          {athlete.dnf
+            ? "Tap to resume logging laps from where they left off."
+            : "End this athlete's race now without completing all laps."}
+        </p>
       </section>
 
       {/* Edit lap dialog */}
