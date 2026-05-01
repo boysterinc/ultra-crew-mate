@@ -54,7 +54,7 @@ const UpcomingArrivals = () => {
       <h2 className="mb-1.5 px-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
         Upcoming arrivals
       </h2>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 sm:gap-3">
+      <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-8">
         {upcoming.map(({ athlete, msLeft }) => {
           const minutes = Math.max(0, Math.ceil(msLeft / 60_000));
           const overdue = msLeft < -10_000;
@@ -65,7 +65,7 @@ const UpcomingArrivals = () => {
               key={athlete.id}
               onClick={() => open(athlete.id)}
               className={cn(
-                "group flex items-center gap-2 rounded-2xl border bg-card p-2 text-left transition-colors",
+                "group flex flex-col items-center gap-1 rounded-2xl border bg-card p-2 text-center transition-colors",
                 overdue
                   ? "border-destructive/70"
                   : urgent
@@ -73,18 +73,18 @@ const UpcomingArrivals = () => {
                   : "border-border hover:border-primary/60"
               )}
             >
-              <div className="relative shrink-0">
-                <Avatar className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl">
+              <div className="relative">
+                <Avatar className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl">
                   {athlete.photoUrl && (
                     <AvatarImage src={athlete.photoUrl} alt={athlete.name} className="object-cover" />
                   )}
-                  <AvatarFallback className="rounded-xl text-sm font-bold">
+                  <AvatarFallback className="rounded-2xl text-lg font-bold">
                     {initial(athlete.name)}
                   </AvatarFallback>
                 </Avatar>
                 <span
                   className={cn(
-                    "absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full px-1 py-0 text-[10px] font-bold tabular leading-none shadow-sm",
+                    "absolute -right-1 -top-1 inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular leading-none shadow-sm",
                     overdue
                       ? "bg-destructive text-destructive-foreground"
                       : urgent
@@ -97,7 +97,7 @@ const UpcomingArrivals = () => {
                   {overdue ? "!" : `${minutes}m`}
                 </span>
               </div>
-              <span className="min-w-0 flex-1 truncate text-xs font-semibold sm:text-sm">
+              <span className="w-full truncate text-xs font-semibold sm:text-sm">
                 {athlete.name}
               </span>
             </button>
