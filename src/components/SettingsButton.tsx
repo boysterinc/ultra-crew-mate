@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { Settings as SettingsIcon, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Settings as SettingsIcon, Plus, Pencil, Trash2, Check, X, Lock, LockOpen } from "lucide-react";
+import { toast } from "sonner";
+import {
+  checkAutoLapAccess,
+  tryUnlockAutoLap,
+  lockAutoLapAccess,
+} from "@/lib/autoLapAccess";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,6 +68,41 @@ const SettingsButton = () => {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [confirmDelete, setConfirmDelete] = useState<RaceEvent | null>(null);
+
+  // ---- AutoLap access (Step 1: password gate only) ----
+  const [autoLapUnlocked, setAutoLapUnlocked] = useState<boolean>(() => checkAutoLapAccess());
+  const [autoLapModalOpen, setAutoLapModalOpen] = useState(false);
+  const [autoLapPassword, setAutoLapPassword] = useState("");
+  const [autoLapError, setAutoLapError] = useState<string | null>(null);
+
+  // Refresh unlocked state whenever the Settings dialog opens.
+  useEffect(() => {
+    if (open) setAutoLapUnlocked(checkAutoLapAccess());
+  }, [open]);
+
+  const openAutoLapModal = () => {
+    setAutoLapPassword("");
+    setAutoLapError(null);
+    setAutoLapModalOpen(true);
+  };
+
+  const submitAutoLapPassword = () => {
+    if (tryUnlockAutoLap(autoLapPassword)) {
+      setAutoLapUnlocked(true);
+      setAutoLapModalOpen(false);
+      setAutoLapPassword("");
+      setAutoLapError(null);
+      toast.success("AutoLap unlocked");
+    } else {
+      setAutoLapError("Incorrect password");
+    }
+  };
+
+  const handleLockAutoLap = () => {
+    lockAutoLapAccess();
+    setAutoLapUnlocked(false);
+    toast("AutoLap locked");
+  };
 
   const startAdd = () => {
     setEditingId(null);
@@ -220,6 +261,38 @@ const SettingsButton = () => {
             )}
           </section>
 
+          <section className="space-y-3 border-t border-border pt-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold flex items-center gap-1.5">
+                  AutoLap
+                  {autoLapUnlocked ? (
+                    <LockOpen className="h-3.5 w-3.5 text-primary" />
+                  ) : (
+                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Password-protected. {autoLapUnlocked ? "Unlocked for this session." : "Enter password to access."}
+                </p>
+              </div>
+              {autoLapUnlocked ? (
+                <Button size="sm" variant="ghost" onClick={handleLockAutoLap} className="gap-1">
+                  <Lock className="h-3.5 w-3.5" /> Lock
+                </Button>
+              ) : (
+                <Button size="sm" variant="secondary" onClick={openAutoLapModal} className="gap-1">
+                  <LockOpen className="h-3.5 w-3.5" /> Unlock
+                </Button>
+              )}
+            </div>
+            {autoLapUnlocked && (
+              <div className="rounded-lg border border-dashed border-border bg-card/50 p-3 text-xs text-muted-foreground">
+                AutoLap controls will appear here. (Not wired up yet.)
+              </div>
+            )}
+          </section>
+
           <DialogFooter>
             <Button
               onClick={() => {
@@ -256,6 +329,53 @@ const SettingsButton = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={autoLapModalOpen}
+        onOpenChange={(v) => {
+          setAutoLapModalOpen(v);
+          if (!v) {
+            setAutoLapPassword("");
+            setAutoLapError(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-4 w-4" /> AutoLap access
+            </DialogTitle>
+            <DialogDescription>Enter the AutoLap password to unlock this section.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="autolap-pw" className="text-xs">Password</Label>
+            <Input
+              id="autolap-pw"
+              type="password"
+              autoFocus
+              value={autoLapPassword}
+              onChange={(e) => {
+                setAutoLapPassword(e.target.value);
+                if (autoLapError) setAutoLapError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  submitAutoLapPassword();
+                }
+              }}
+              placeholder="••••••••"
+            />
+            {autoLapError && (
+              <p className="text-xs text-destructive">{autoLapError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAutoLapModalOpen(false)}>Cancel</Button>
+            <Button onClick={submitAutoLapPassword} disabled={!autoLapPassword}>Unlock</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
