@@ -69,6 +69,41 @@ const SettingsButton = () => {
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [confirmDelete, setConfirmDelete] = useState<RaceEvent | null>(null);
 
+  // ---- AutoLap access (Step 1: password gate only) ----
+  const [autoLapUnlocked, setAutoLapUnlocked] = useState<boolean>(() => checkAutoLapAccess());
+  const [autoLapModalOpen, setAutoLapModalOpen] = useState(false);
+  const [autoLapPassword, setAutoLapPassword] = useState("");
+  const [autoLapError, setAutoLapError] = useState<string | null>(null);
+
+  // Refresh unlocked state whenever the Settings dialog opens.
+  useEffect(() => {
+    if (open) setAutoLapUnlocked(checkAutoLapAccess());
+  }, [open]);
+
+  const openAutoLapModal = () => {
+    setAutoLapPassword("");
+    setAutoLapError(null);
+    setAutoLapModalOpen(true);
+  };
+
+  const submitAutoLapPassword = () => {
+    if (tryUnlockAutoLap(autoLapPassword)) {
+      setAutoLapUnlocked(true);
+      setAutoLapModalOpen(false);
+      setAutoLapPassword("");
+      setAutoLapError(null);
+      toast.success("AutoLap unlocked");
+    } else {
+      setAutoLapError("Incorrect password");
+    }
+  };
+
+  const handleLockAutoLap = () => {
+    lockAutoLapAccess();
+    setAutoLapUnlocked(false);
+    toast("AutoLap locked");
+  };
+
   const startAdd = () => {
     setEditingId(null);
     setDraft(emptyDraft());
