@@ -329,6 +329,53 @@ const SettingsButton = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={autoLapModalOpen}
+        onOpenChange={(v) => {
+          setAutoLapModalOpen(v);
+          if (!v) {
+            setAutoLapPassword("");
+            setAutoLapError(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-4 w-4" /> AutoLap access
+            </DialogTitle>
+            <DialogDescription>Enter the AutoLap password to unlock this section.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="autolap-pw" className="text-xs">Password</Label>
+            <Input
+              id="autolap-pw"
+              type="password"
+              autoFocus
+              value={autoLapPassword}
+              onChange={(e) => {
+                setAutoLapPassword(e.target.value);
+                if (autoLapError) setAutoLapError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  submitAutoLapPassword();
+                }
+              }}
+              placeholder="••••••••"
+            />
+            {autoLapError && (
+              <p className="text-xs text-destructive">{autoLapError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAutoLapModalOpen(false)}>Cancel</Button>
+            <Button onClick={submitAutoLapPassword} disabled={!autoLapPassword}>Unlock</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
