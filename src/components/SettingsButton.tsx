@@ -32,6 +32,7 @@ import {
 import { useRaceStore } from "@/lib/store";
 import { EventKind, RaceEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import AutoLapDeviceMapping from "@/components/AutoLapDeviceMapping";
 
 type Draft = {
   name: string;
@@ -307,11 +308,7 @@ const SettingsButton = () => {
                   </div>
                 );
               }
-              return (
-                <div className="rounded-lg border border-dashed border-border bg-card/50 p-3 text-xs text-muted-foreground">
-                  AutoLap controls will appear here. (Not wired up yet.)
-                </div>
-              );
+              return <AutoLapDeviceMapping />;
             })()}
           </section>
 
