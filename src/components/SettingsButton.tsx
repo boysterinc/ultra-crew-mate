@@ -286,11 +286,33 @@ const SettingsButton = () => {
                 </Button>
               )}
             </div>
-            {autoLapUnlocked && (
-              <div className="rounded-lg border border-dashed border-border bg-card/50 p-3 text-xs text-muted-foreground">
-                AutoLap controls will appear here. (Not wired up yet.)
-              </div>
-            )}
+
+            {/* Gate: only render AutoLap content when checkAutoLapAccess() === true */}
+            {(() => {
+              if (!checkAutoLapAccess()) {
+                return (
+                  <div
+                    role="alert"
+                    aria-live="polite"
+                    className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3"
+                  >
+                    <Lock className="mt-0.5 h-4 w-4 text-destructive shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-destructive">Access Required</p>
+                      <p className="text-xs text-muted-foreground">
+                        AutoLap is locked. Click <span className="font-medium">Unlock</span> and enter the
+                        password to continue.
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div className="rounded-lg border border-dashed border-border bg-card/50 p-3 text-xs text-muted-foreground">
+                  AutoLap controls will appear here. (Not wired up yet.)
+                </div>
+              );
+            })()}
           </section>
 
           <DialogFooter>
