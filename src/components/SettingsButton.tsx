@@ -261,6 +261,38 @@ const SettingsButton = () => {
             )}
           </section>
 
+          <section className="space-y-3 border-t border-border pt-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold flex items-center gap-1.5">
+                  AutoLap
+                  {autoLapUnlocked ? (
+                    <LockOpen className="h-3.5 w-3.5 text-primary" />
+                  ) : (
+                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Password-protected. {autoLapUnlocked ? "Unlocked for this session." : "Enter password to access."}
+                </p>
+              </div>
+              {autoLapUnlocked ? (
+                <Button size="sm" variant="ghost" onClick={handleLockAutoLap} className="gap-1">
+                  <Lock className="h-3.5 w-3.5" /> Lock
+                </Button>
+              ) : (
+                <Button size="sm" variant="secondary" onClick={openAutoLapModal} className="gap-1">
+                  <LockOpen className="h-3.5 w-3.5" /> Unlock
+                </Button>
+              )}
+            </div>
+            {autoLapUnlocked && (
+              <div className="rounded-lg border border-dashed border-border bg-card/50 p-3 text-xs text-muted-foreground">
+                AutoLap controls will appear here. (Not wired up yet.)
+              </div>
+            )}
+          </section>
+
           <DialogFooter>
             <Button
               onClick={() => {
