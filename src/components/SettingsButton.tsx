@@ -309,7 +309,12 @@ const SettingsButton = () => {
                   </div>
                 );
               }
-              return <AutoLapDeviceMapping />;
+              return (
+                <div className="space-y-3">
+                  <AutoLapDeviceMapping />
+                  <BluetoothScanner />
+                </div>
+              );
             })()}
           </section>
 
