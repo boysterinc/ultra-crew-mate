@@ -33,6 +33,7 @@ import { useRaceStore } from "@/lib/store";
 import { EventKind, RaceEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import AutoLapDeviceMapping from "@/components/AutoLapDeviceMapping";
+import BluetoothScanner from "@/components/BluetoothScanner";
 
 type Draft = {
   name: string;
@@ -308,7 +309,12 @@ const SettingsButton = () => {
                   </div>
                 );
               }
-              return <AutoLapDeviceMapping />;
+              return (
+                <div className="space-y-3">
+                  <AutoLapDeviceMapping />
+                  <BluetoothScanner />
+                </div>
+              );
             })()}
           </section>
 
