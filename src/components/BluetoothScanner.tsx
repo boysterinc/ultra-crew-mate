@@ -49,7 +49,7 @@ const BluetoothScanner = () => {
     setScanning(true);
     try {
       // Basic request: any device. The browser shows its native permission/chooser UI.
-      const device: BluetoothDevice = await (navigator as any).bluetooth.requestDevice({
+      const device: { id: string; name?: string } = await (navigator as any).bluetooth.requestDevice({
         acceptAllDevices: true,
         optionalServices: [],
       });
