@@ -25,6 +25,7 @@ export function tryUnlockAutoLap(password: string): boolean {
   if (password === AUTOLAP_PASSWORD) {
     try {
       sessionStorage.setItem(SESSION_KEY, "1");
+      window.dispatchEvent(new Event("autolap-access-changed"));
     } catch {
       /* ignore */
     }
@@ -39,6 +40,7 @@ export function tryUnlockAutoLap(password: string): boolean {
 export function lockAutoLapAccess(): void {
   try {
     sessionStorage.removeItem(SESSION_KEY);
+    window.dispatchEvent(new Event("autolap-access-changed"));
   } catch {
     /* ignore */
   }
