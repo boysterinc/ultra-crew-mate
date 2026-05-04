@@ -8,14 +8,21 @@ import AthleteDetail from "./pages/AthleteDetail.tsx";
 import NutritionPlan from "./pages/NutritionPlan.tsx";
 import NutritionMatrix from "./pages/NutritionMatrix.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import { useAutoLapScannerLifecycle } from "@/lib/autoLapScanner";
 
 const queryClient = new QueryClient();
+
+const AutoLapLifecycle = () => {
+  useAutoLapScannerLifecycle();
+  return null;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <AutoLapLifecycle />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
