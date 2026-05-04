@@ -147,7 +147,11 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
           .getState()
           .mappings.some((m) => m.device_name === name);
         if (!known) return;
-        getTracker(name).push(rssi);
+        const now = Date.now();
+        useAutoLapScanner.setState((s) => ({
+          lastSeenAt: { ...s.lastSeenAt, [name]: now },
+        }));
+        getTracker(name).push(rssi, now);
       };
       bt.addEventListener("advertisementreceived", advListener);
       leScan = await bt.requestLEScan({ acceptAllAdvertisements: true });
@@ -161,10 +165,21 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
   stop: () => {
     teardownLEScan();
     trackers.forEach((t) => t.reset());
-    set({ status: "idle", error: null, smoothedRssi: {}, lastPeak: {} });
+    set({
+      status: "idle",
+      error: null,
+      smoothedRssi: {},
+      lastPeak: {},
+      phase: {},
+      inRangeSince: {},
+      lastSeenAt: {},
+    });
   },
 
-  feedRssiSample: (deviceName, rssi, now) => {
+  feedRssiSample: (deviceName, rssi, now = Date.now()) => {
+    useAutoLapScanner.setState((s) => ({
+      lastSeenAt: { ...s.lastSeenAt, [deviceName]: now },
+    }));
     getTracker(deviceName).push(rssi, now);
   },
 }));
