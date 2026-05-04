@@ -157,12 +157,13 @@ export const useAutoLapScannerLifecycle = () => {
       }
     };
     sync();
-    // sessionStorage changes from same tab don't fire 'storage', so poll.
     const id = window.setInterval(sync, 1000);
     window.addEventListener("storage", sync);
+    window.addEventListener("autolap-access-changed", sync);
     return () => {
       window.clearInterval(id);
       window.removeEventListener("storage", sync);
+      window.removeEventListener("autolap-access-changed", sync);
     };
   }, []);
 };
