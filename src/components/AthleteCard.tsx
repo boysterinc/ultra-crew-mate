@@ -6,12 +6,14 @@ import { totalLapsFor, distanceCovered, avgRecentLapTime, nextEta, goalLapTime, 
 import { formatPace, formatShortClock, formatDistance, formatHM } from "@/lib/format";
 import CheckpointButton from "./CheckpointButton";
 import { Progress } from "@/components/ui/progress";
-import { ChevronRight, Trash2, Pencil, Bell, GripVertical } from "lucide-react";
+import { ChevronRight, Trash2, Pencil, Bell, GripVertical, Watch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { speakArrival } from "@/lib/speech";
+import { useDeviceMappingStore } from "@/lib/deviceMapping";
+import { useAthleteSignal } from "@/lib/autoLapStatus";
 
 interface AthleteCardProps {
   athlete: Athlete;
@@ -106,6 +108,7 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
           <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 min-w-0">
             <h2 className={cn("font-bold leading-tight truncate flex-1 min-w-0", compact ? "text-base sm:text-lg md:text-xl lg:text-2xl" : "text-xl md:text-2xl lg:text-3xl")}>{athlete.name}</h2>
+            <DeviceWatchIndicator athleteId={athlete.id} compact={compact} />
             <span className={cn("tabular shrink-0 text-muted-foreground", compact ? "text-sm sm:text-base md:text-lg lg:text-xl" : "text-base md:text-lg lg:text-xl")}>
               <span className="text-foreground font-semibold">{lapsDone}</span>/{totalLaps}
             </span>
@@ -293,6 +296,26 @@ const GoalLine = ({
         </span>
       )}
     </div>
+  );
+};
+
+const DeviceWatchIndicator = ({ athleteId, compact }: { athleteId: string; compact: boolean }) => {
+  const mapping = useDeviceMappingStore((s) =>
+    s.mappings.find((m) => m.athlete_id === athleteId)
+  );
+  const signal = useAthleteSignal(athleteId);
+  if (!mapping) return null;
+  const active = signal.present;
+  return (
+    <Watch
+      className={cn(
+        "shrink-0 transition-colors",
+        compact ? "h-3.5 w-3.5" : "h-4 w-4",
+        active ? "text-success" : "text-muted-foreground/40"
+      )}
+      strokeWidth={2.25}
+      aria-label={active ? "Device signal active" : "Device signal lost"}
+    />
   );
 };
 

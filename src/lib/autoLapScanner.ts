@@ -16,9 +16,17 @@ import {
   createRssiTracker,
   RssiTracker,
   RssiPeakEvent,
+  RssiPhase,
 } from "@/lib/rssiTracker";
 
 export type ScannerStatus = "idle" | "scanning" | "unsupported" | "error";
+
+/** dBm threshold above which we consider the signal "strong". */
+export const RSSI_STRONG_THRESHOLD = -65;
+/** Continuous in-range duration that flips status to "Stay". */
+export const STAY_DURATION_MS = 5_000;
+/** Sample considered fresh / signal present within this window. */
+export const SIGNAL_FRESH_MS = 4_000;
 
 interface ScannerState {
   status: ScannerStatus;
@@ -27,6 +35,12 @@ interface ScannerState {
   smoothedRssi: Record<string, number | null>;
   /** last peak event per device name. */
   lastPeak: Record<string, RssiPeakEvent | null>;
+  /** current phase per device name. */
+  phase: Record<string, RssiPhase>;
+  /** ms timestamp the device entered "in" phase (null if "out"). */
+  inRangeSince: Record<string, number | null>;
+  /** ms timestamp of the last received sample for the device. */
+  lastSeenAt: Record<string, number | null>;
   start: () => Promise<void>;
   stop: () => void;
   /** Inject an RSSI sample (real BLE bridge or test). */
@@ -38,31 +52,44 @@ const trackers = new Map<string, RssiTracker>();
 let leScan: { stop: () => void } | null = null;
 let advListener: ((e: any) => void) | null = null;
 
+const getMachineForDevice = (deviceName: string) => {
+  const mapping = useDeviceMappingStore
+    .getState()
+    .mappings.find((m) => m.device_name === deviceName);
+  if (!mapping) return null;
+  return useAutoLapRegistry.getState().getMachine(mapping.athlete_id);
+};
+
 const getTracker = (deviceName: string): RssiTracker => {
   let t = trackers.get(deviceName);
   if (t) return t;
   t = createRssiTracker(deviceName, {
-    onPhaseChange: (_phase, smoothed) => {
+    onPhaseChange: (phase, smoothed) => {
+      const now = Date.now();
       useAutoLapScanner.setState((s) => ({
         smoothedRssi: { ...s.smoothedRssi, [deviceName]: smoothed },
+        phase: { ...s.phase, [deviceName]: phase },
+        inRangeSince: {
+          ...s.inRangeSince,
+          [deviceName]: phase === "in" ? now : null,
+        },
       }));
+      // Keep state machine aligned with signal presence.
+      const machine = getMachineForDevice(deviceName);
+      if (machine) {
+        if (phase === "in") machine.signalSeen(now);
+        else machine.signalLost(now);
+      }
     },
     onPeak: (event) => {
       useAutoLapScanner.setState((s) => ({
         lastPeak: { ...s.lastPeak, [deviceName]: event },
       }));
-      // Forward to the matching athlete's state machine.
-      const mapping = useDeviceMappingStore
-        .getState()
-        .mappings.find((m) => m.device_name === deviceName);
-      if (!mapping) return;
-      const machine = useAutoLapRegistry
-        .getState()
-        .getMachine(mapping.athlete_id);
-      // Peak-time is the lap time. State machine is unchanged: trigger then
-      // immediately notify the signal is gone (will reset after 30s).
-      machine.lapTrigger(event.peakAt);
-      machine.signalLost(event.exitedAt);
+      const machine = getMachineForDevice(deviceName);
+      if (machine) {
+        machine.lapTrigger(event.peakAt);
+        machine.signalLost(event.exitedAt);
+      }
     },
   });
   trackers.set(deviceName, t);
@@ -94,6 +121,9 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
   error: null,
   smoothedRssi: {},
   lastPeak: {},
+  phase: {},
+  inRangeSince: {},
+  lastSeenAt: {},
 
   start: async () => {
     if (get().status === "scanning") return;
@@ -117,7 +147,11 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
           .getState()
           .mappings.some((m) => m.device_name === name);
         if (!known) return;
-        getTracker(name).push(rssi);
+        const now = Date.now();
+        useAutoLapScanner.setState((s) => ({
+          lastSeenAt: { ...s.lastSeenAt, [name]: now },
+        }));
+        getTracker(name).push(rssi, now);
       };
       bt.addEventListener("advertisementreceived", advListener);
       leScan = await bt.requestLEScan({ acceptAllAdvertisements: true });
@@ -131,10 +165,21 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
   stop: () => {
     teardownLEScan();
     trackers.forEach((t) => t.reset());
-    set({ status: "idle", error: null, smoothedRssi: {}, lastPeak: {} });
+    set({
+      status: "idle",
+      error: null,
+      smoothedRssi: {},
+      lastPeak: {},
+      phase: {},
+      inRangeSince: {},
+      lastSeenAt: {},
+    });
   },
 
-  feedRssiSample: (deviceName, rssi, now) => {
+  feedRssiSample: (deviceName, rssi, now = Date.now()) => {
+    useAutoLapScanner.setState((s) => ({
+      lastSeenAt: { ...s.lastSeenAt, [deviceName]: now },
+    }));
     getTracker(deviceName).push(rssi, now);
   },
 }));

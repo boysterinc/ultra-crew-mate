@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatDuration } from "@/lib/format";
+import { useAutoLapRegistry } from "@/lib/autoLapMachine";
 
 interface CheckpointButtonProps {
   athlete: Athlete;
@@ -35,6 +36,14 @@ const CheckpointButton = ({ athlete, lastTimestamp, size = "md", isStart = false
   const triggerLap = () => {
     const lap = recordLap(athlete.id);
     if (lap) {
+      // Force the AutoLap machine into "in-checkpoint" so any concurrent
+      // RSSI peak is blocked until the signal disappears (≥30s lost → ready).
+      const machine = useAutoLapRegistry.getState().getMachine(athlete.id);
+      machine.lapTrigger(lap.timestamp);
+      // Start the 30s "signal lost" countdown immediately. If real RSSI is
+      // present, the scanner will call signalSeen() and cancel the timer,
+      // keeping AutoLap blocked until the device leaves range.
+      machine.signalLost(lap.timestamp);
       toast.success(`Lap ${lap.lapNumber} • ${athlete.name}`, {
         description: lap.lapTime > 0 ? `Lap time ${formatDuration(lap.lapTime)}` : "First checkpoint logged",
       });
