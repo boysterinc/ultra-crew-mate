@@ -299,4 +299,24 @@ const GoalLine = ({
   );
 };
 
+const DeviceWatchIndicator = ({ athleteId, compact }: { athleteId: string; compact: boolean }) => {
+  const mapping = useDeviceMappingStore((s) =>
+    s.mappings.find((m) => m.athlete_id === athleteId)
+  );
+  const signal = useAthleteSignal(athleteId);
+  if (!mapping) return null;
+  const active = signal.present;
+  return (
+    <Watch
+      className={cn(
+        "shrink-0 transition-colors",
+        compact ? "h-3.5 w-3.5" : "h-4 w-4",
+        active ? "text-success" : "text-muted-foreground/40"
+      )}
+      strokeWidth={2.25}
+      aria-label={active ? "Device signal active" : "Device signal lost"}
+    />
+  );
+};
+
 export default AthleteCard;
