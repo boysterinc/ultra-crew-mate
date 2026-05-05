@@ -1,4 +1,4 @@
-// Global Bluetooth Manager for AutoLap (Robust Version)
+// Global Bluetooth Manager for AutoLap (Vercel Build-Safe Version)
 // ---------------------------------------------------------------------------
 import { create } from "zustand";
 import { useEffect } from "react";
@@ -20,13 +20,14 @@ export const WATCHDOG_TIMEOUT_MS = 45000;
 export const SIGNAL_LOST_AFTER_MS = 30000;
 
 const log = (...args: unknown[]) => {
+  // eslint-disable-next-line no-console
   console.log("[BluetoothManager]", ...args);
 };
 
 // --- Screen Wake Lock Management ---
 let wakeLock: any = null;
 const requestWakeLock = async () => {
-  if (typeof navigator === "undefined" || !("wakeLock" in navigator)) return;
+  if (typeof window === "undefined" || typeof navigator === "undefined" || !("wakeLock" in navigator)) return;
   try {
     if (!wakeLock) {
       wakeLock = await (navigator as any).wakeLock.request("screen");
@@ -103,7 +104,7 @@ const getTracker = (deviceName: string): RssiTracker => {
 const stopEverything = () => {
   if (leScan) try { leScan.stop(); } catch (e) {}
   leScan = null;
-  if (advListener && (navigator as any).bluetooth) {
+  if (advListener && typeof navigator !== "undefined" && (navigator as any).bluetooth) {
     (navigator as any).bluetooth.removeEventListener("advertisementreceived", advListener);
   }
   advListener = null;
@@ -114,7 +115,6 @@ const scanLoopTick = () => {
   const now = Date.now();
   const state = useAutoLapScanner.getState();
 
-  // Watchdog: ถ้าเงียบไปนานเกินไป สั่ง Restart
   if (state.status === "scanning" && now - lastGlobalAdAt > WATCHDOG_TIMEOUT_MS) {
     log("⚠️ Watchdog trigger: Restarting Scan...");
     void state.start();
@@ -157,6 +157,8 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
     starting = true;
     
     try {
+      if (typeof window === "undefined" || typeof navigator === "undefined") return;
+      
       const bt = (navigator as any).bluetooth;
       if (!bt?.requestLEScan) {
         set({ status: "unsupported" });
@@ -172,16 +174,17 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
         const rssi = event.rssi;
         if (!name || rssi === undefined) return;
         
+        const now = Date.now();
         set((s) => ({
-          lastSeenAt: { ...s.lastSeenAt, [name]: Date.now() },
+          lastSeenAt: { ...s.lastSeenAt, [name]: now },
           detectedDevices: {
             ...s.detectedDevices,
-            [name]: { name, lastRssi: rssi, lastSeenAt: Date.now(), signalLost: false }
+            [name]: { name, lastRssi: rssi, lastSeenAt: now, signalLost: false }
           }
         }));
         
         const isKnown = useDeviceMappingStore.getState().mappings.some(m => m.device_name === name);
-        if (isKnown) getTracker(name).push(rssi);
+        if (isKnown) getTracker(name).push(rssi, now);
       };
 
       bt.addEventListener("advertisementreceived", advListener);
@@ -211,9 +214,9 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
     set({ status: "idle", detectedDevices: {}, smoothedRssi: {}, lastPeak: {}, phase: {} });
   },
 
-  feedRssiSample: (name, rssi) => {
-    lastGlobalAdAt = Date.now();
-    getTracker(name).push(rssi);
+  feedRssiSample: (deviceName: string, rssi: number, now = Date.now()) => {
+    lastGlobalAdAt = now;
+    getTracker(deviceName).push(rssi, now);
   }
 }));
 
@@ -222,7 +225,7 @@ export const useAutoLapScannerLifecycle = () => {
     const sync = () => {
       const unlocked = checkAutoLapAccess();
       const status = useAutoLapScanner.getState().status;
-      if (unlocked && (status === "idle" || status === "error")) {
+      if (unlocked && (status === "idle" || status === "error" || status === "waiting-gesture")) {
         void useAutoLapScanner.getState().start();
       } else if (!unlocked && status !== "idle") {
         useAutoLapScanner.getState().stop();
@@ -236,11 +239,13 @@ export const useAutoLapScannerLifecycle = () => {
       }
     };
 
-    window.addEventListener("pointerdown", handleInteraction);
-    const interval = setInterval(sync, 2000);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("pointerdown", handleInteraction);
-    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("pointerdown", handleInteraction);
+      const interval = setInterval(sync, 2000);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener("pointerdown", handleInteraction);
+      };
+    }
   }, []);
 };
