@@ -1,5 +1,3 @@
-// Per-athlete signal status helpers, derived from the global scanner store
-// and the athlete↔device mapping. UI-only — no state machine writes here.
 import { useDeviceMappingStore } from "@/lib/deviceMapping";
 import {
   useAutoLapScanner,
@@ -12,7 +10,6 @@ export type AthleteSignalStatus = "none" | "in-range" | "stay";
 
 export interface AthleteSignal {
   status: AthleteSignalStatus;
-  /** True if we have a recent advertisement for the device. */
   present: boolean;
   smoothedRssi: number | null;
   inRangeSince: number | null;
@@ -24,6 +21,9 @@ export const useAthleteSignal = (athleteId: string): AthleteSignal => {
     s.mappings.find((m) => m.athlete_id === athleteId)
   );
   const deviceName = mapping?.device_name ?? null;
+
+  // เปลี่ยนมาใช้เวลาจาก Store ที่เดินตลอดเวลา แทน Date.now() ธรรมดา
+  const now = useAutoLapScanner((s) => s.currentTime);
 
   const smoothedRssi = useAutoLapScanner((s) =>
     deviceName ? s.smoothedRssi[deviceName] ?? null : null
@@ -38,7 +38,6 @@ export const useAthleteSignal = (athleteId: string): AthleteSignal => {
     deviceName ? s.lastSeenAt[deviceName] ?? null : null
   );
 
-  const now = Date.now();
   const present =
     !!deviceName && lastSeenAt !== null && now - lastSeenAt < SIGNAL_FRESH_MS;
 
