@@ -1,8 +1,11 @@
+// Global Bluetooth Manager for AutoLap.
+// ---------------------------------------------------------------------------
 import { create } from "zustand";
 import { useEffect } from "react";
 import { checkAutoLapAccess } from "@/lib/autoLapAccess";
 import { useDeviceMappingStore } from "@/lib/deviceMapping";
 import { useAutoLapRegistry } from "@/lib/autoLapMachine";
+import { useRaceStore } from "@/lib/store";
 import {
   createRssiTracker,
   RssiTracker,
@@ -10,18 +13,23 @@ import {
   RssiPhase,
 } from "@/lib/rssiTracker";
 
+// --- Public constants -------------------------------------------------------
 export type ScannerStatus = "idle" | "scanning" | "unsupported" | "error";
 
-export const RSSI_STRONG_THRESHOLD = -80; // ปรับให้สถานะ UI ขึ้นว่าสัญญาณแรงได้ง่ายขึ้น (เดิม -65)
+export const RSSI_STRONG_THRESHOLD = -80;
 export const STAY_DURATION_MS = 5_000;
 export const SIGNAL_FRESH_MS = 4_000;
+
 export const SCAN_LOOP_INTERVAL_MS = 2_500;
 export const SIGNAL_LOST_AFTER_MS = 30_000;
 
+// --- Debug log helper -------------------------------------------------------
 const log = (...args: unknown[]) => {
+  // eslint-disable-next-line no-console
   console.log("[BluetoothManager]", ...args);
 };
 
+// --- Detected device record -------------------------------------------------
 export interface DetectedDevice {
   name: string;
   lastRssi: number;
@@ -45,6 +53,7 @@ interface ScannerState {
   feedRssiSample: (deviceName: string, rssi: number, now?: number) => void;
 }
 
+// --- Module-level singletons ------------------------------------------------
 const trackers = new Map<string, RssiTracker>();
 let leScan: { stop: () => void; active?: boolean } | null = null;
 let advListener: ((e: any) => void) | null = null;
@@ -85,9 +94,21 @@ const getTracker = (deviceName: string): RssiTracker => {
       useAutoLapScanner.setState((s) => ({
         lastPeak: { ...s.lastPeak, [deviceName]: event },
       }));
+      
       const machine = getMachineForDevice(deviceName);
       if (machine) {
-        machine.lapTrigger(event.peakAt);
+        // ให้สมองกลเช็กว่านี่คือการเดินครบรอบจริงๆ 
+        const isAccepted = machine.lapTrigger(event.peakAt);
+        
+        if (isAccepted) {
+          // ถ้าผ่านเงื่อนไข ให้สั่งเซฟลงฐานข้อมูล (เหมือนคนกดปุ่ม LAP)
+          const mapping = useDeviceMappingStore.getState().mappings.find((m) => m.device_name === deviceName);
+          if (mapping) {
+            useRaceStore.getState().addManualLap(mapping.athlete_id, event.peakAt);
+            log("💾 AutoLap Saved for athlete:", mapping.athlete_id);
+          }
+        }
+        
         machine.signalLost(event.exitedAt);
       }
     },
@@ -97,12 +118,21 @@ const getTracker = (deviceName: string): RssiTracker => {
 };
 
 const teardownLEScan = () => {
-  try { leScan?.stop(); } catch { /* ignore */ }
+  try {
+    leScan?.stop();
+  } catch {
+    /* ignore */
+  }
   leScan = null;
   if (advListener && (navigator as any).bluetooth?.removeEventListener) {
     try {
-      (navigator as any).bluetooth.removeEventListener("advertisementreceived", advListener);
-    } catch { /* ignore */ }
+      (navigator as any).bluetooth.removeEventListener(
+        "advertisementreceived",
+        advListener
+      );
+    } catch {
+      /* ignore */
+    }
   }
   advListener = null;
 };
@@ -118,6 +148,7 @@ const scanLoopTick = () => {
   const now = Date.now();
   const state = useAutoLapScanner.getState();
 
+  // กระตุ้น Tracker ให้รู้ว่าเวลาผ่านไป
   trackers.forEach((t) => t.tick(now));
 
   const next: Record<string, DetectedDevice> = {};
@@ -157,20 +188,28 @@ const scanLoopTick = () => {
 };
 
 const startScanLoop = () => {
-  if (scanLoopId !== null) return;
+  if (scanLoopId !== null) return; 
   log("scan loop start (interval", SCAN_LOOP_INTERVAL_MS, "ms)");
   scanLoopId = setInterval(scanLoopTick, SCAN_LOOP_INTERVAL_MS);
 };
 
 const recordAdvertisement = (name: string, rssi: number, now: number) => {
   signalLostLogged.delete(name);
-  useAutoLapScanner.setState((s) => ({
-    lastSeenAt: { ...s.lastSeenAt, [name]: now },
-    detectedDevices: {
-      ...s.detectedDevices,
-      [name]: { name, lastRssi: rssi, lastSeenAt: now, signalLost: false },
-    },
-  }));
+  useAutoLapScanner.setState((s) => {
+    const prev = s.detectedDevices[name];
+    return {
+      lastSeenAt: { ...s.lastSeenAt, [name]: now },
+      detectedDevices: {
+        ...s.detectedDevices,
+        [name]: {
+          name,
+          lastRssi: rssi,
+          lastSeenAt: now,
+          signalLost: false,
+        },
+      },
+    };
+  });
   const known = useDeviceMappingStore
     .getState()
     .mappings.some((m) => m.device_name === name);
@@ -193,7 +232,8 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
     if (get().status === "scanning" && leScan !== null) return;
     starting = true;
     try {
-      const bt: any = typeof navigator !== "undefined" ? (navigator as any).bluetooth : null;
+      const bt: any =
+        typeof navigator !== "undefined" ? (navigator as any).bluetooth : null;
 
       if (!bt || typeof bt.requestLEScan !== "function") {
         set({ status: "unsupported", error: null });
@@ -203,6 +243,7 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
       }
 
       teardownLEScan();
+
       advListener = (event: any) => {
         const name: string | undefined = event.device?.name;
         const rssi: number | undefined = event.rssi;
@@ -248,6 +289,9 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
   },
 }));
 
+// ---------------------------------------------------------------------------
+// Lifecycle hook: tie the global manager to AutoLap access.
+// ---------------------------------------------------------------------------
 export const useAutoLapScannerLifecycle = () => {
   useEffect(() => {
     const sync = () => {
