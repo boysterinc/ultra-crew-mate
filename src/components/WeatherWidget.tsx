@@ -110,12 +110,11 @@ const WeatherWidget = ({ compact = false }: { compact?: boolean }) => {
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary">
           <Icon className="h-4 w-4 text-primary" />
         </div>
-        <div className="flex items-baseline gap-2 tabular">
+        <div className="flex flex-col leading-tight tabular">
           <span className="text-sm font-bold leading-none">{data.temp}°</span>
-          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+          <span className="text-[10px] text-muted-foreground whitespace-nowrap mt-0.5">
             Feels <span className="font-semibold text-foreground">{data.feelsLike}°</span>
-          </span>
-          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+            <span className="mx-1">·</span>
             Hum <span className="font-semibold text-foreground">{data.humidity}%</span>
           </span>
         </div>
