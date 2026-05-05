@@ -132,6 +132,7 @@ const scanLoopTick = () => {
   const now = Date.now();
   const state = useAutoLapScanner.getState();
 
+  // Watchdog เช็กการตายเงียบ
   if (state.status === "scanning" && leScan !== null) {
     if (now - lastGlobalAdAt > WATCHDOG_TIMEOUT_MS) {
       log("watchdog: scan silently died, forcing restart...");
@@ -228,7 +229,6 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
       if (!bt || typeof bt.requestLEScan !== "function") {
         set({ status: "unsupported", error: null });
         startScanLoop();
-        log("start: Web Bluetooth requestLEScan unavailable; loop only");
         return;
       }
 
@@ -251,7 +251,6 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
     } catch (err: any) {
       teardownLEScan();
       log("start error:", err?.message || err);
-      // โดนบล็อกเพราะยังไม่คลิกจอ จะมาติดที่ Error นี้
       set({ status: "error", error: err?.message || String(err) });
       startScanLoop();
     } finally {
@@ -279,25 +278,18 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
 
   feedRssiSample: (deviceName, rssi, now = Date.now()) => {
     lastGlobalAdAt = now;
-    log("rssi", deviceName, rssi);
     recordAdvertisement(deviceName, rssi, now);
   },
 }));
 
-// ---------------------------------------------------------------------------
-// Lifecycle hook: ผูกการทำงานและจัดการปัญหารีเฟรชจอ
-// ---------------------------------------------------------------------------
 export const useAutoLapScannerLifecycle = () => {
   useEffect(() => {
     const sync = () => {
       const unlocked = checkAutoLapAccess();
       const status = useAutoLapScanner.getState().status;
-      // พยายาม Start ตั้งแต่โหลดหน้าจอ
       if (unlocked && status === "idle") {
-        log("access granted → starting scanner");
         void useAutoLapScanner.getState().start();
       } else if (!unlocked && status !== "idle") {
-        log("access revoked → stopping scanner");
         useAutoLapScanner.getState().stop();
       }
     };
@@ -307,28 +299,36 @@ export const useAutoLapScannerLifecycle = () => {
     window.addEventListener("storage", sync);
     window.addEventListener("autolap-access-changed", sync);
 
-    // --- พระเอกขี่ม้าขาว: ดักจับการแตะหน้าจอครั้งแรกหลัง Refresh ---
-    const wakeUpScanner = () => {
+    // --- แก้ปัญหาจอดับ: เมื่อกลับมาเปิดหน้าจอ ให้เช็กและเริ่มสแกนใหม่ทันที ---
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        log("Visibility: Screen wake up / Tab visible - checking scanner...");
+        const unlocked = checkAutoLapAccess();
+        if (unlocked) {
+          // รีสตาร์ทเวลา Watchdog และเริ่มสแกนใหม่เพื่อให้ระบบฟื้นตัว
+          lastGlobalAdAt = Date.now();
+          void useAutoLapScanner.getState().start();
+        }
+      }
+    };
+
+    const wakeUpOnTouch = () => {
       const unlocked = checkAutoLapAccess();
       const status = useAutoLapScanner.getState().status;
-      
-      // ถ้าระบบยัง Unlock อยู่ แต่บลูทูธยังไม่เริ่มสแกน ให้สั่งรันทันทีที่นิ้วแตะจอ
       if (unlocked && status !== "scanning") {
-        log("wakeUpScanner: User tapped the screen, reviving Bluetooth!");
         void useAutoLapScanner.getState().start();
       }
     };
 
-    // ฝังตัวดักฟัง เมื่อคุณแตะหรือคลิกจอ มันจะสั่งตื่นทันที
-    window.addEventListener("pointerdown", wakeUpScanner);
-    window.addEventListener("click", wakeUpScanner);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pointerdown", wakeUpOnTouch);
 
     return () => {
       window.clearInterval(id);
       window.removeEventListener("storage", sync);
       window.removeEventListener("autolap-access-changed", sync);
-      window.removeEventListener("pointerdown", wakeUpScanner);
-      window.removeEventListener("click", wakeUpScanner);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pointerdown", wakeUpOnTouch);
     };
   }, []);
 };
