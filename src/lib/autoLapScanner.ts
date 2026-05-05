@@ -1,5 +1,4 @@
-// Global Bluetooth Manager for AutoLap.
-// รวมฟังก์ชัน: RSSI Tracker (3s Window), Watchdog, Visibility Wake-up, และ Screen Wake Lock
+// Global Bluetooth Manager for AutoLap (Full Version with Self-Healing)
 // ---------------------------------------------------------------------------
 import { create } from "zustand";
 import { useEffect } from "react";
@@ -22,13 +21,14 @@ export const SIGNAL_FRESH_MS = 4_000;
 export const SCAN_LOOP_INTERVAL_MS = 2_500;
 export const SIGNAL_LOST_AFTER_MS = 30_000;
 export const WATCHDOG_TIMEOUT_MS = 45_000; 
+export const SELF_HEALING_THRESHOLD_MS = 10_000; // หากเวลาค้างเกิน 10 วิ ให้สะดุ้งตื่น
 
 const log = (...args: unknown[]) => {
   // eslint-disable-next-line no-console
   console.log("[BluetoothManager]", ...args);
 };
 
-// --- [Screen Wake Lock] ป้องกันหน้าจอหลับบน Android/iOS ---
+// --- [Screen Wake Lock] ระบบกันหน้าจอหลับ ---
 let wakeLock: any = null;
 
 const requestWakeLock = async () => {
@@ -36,9 +36,6 @@ const requestWakeLock = async () => {
   try {
     wakeLock = await (navigator as any).wakeLock.request("screen");
     log("🔓 Wake Lock active: Screen will stay ON.");
-    wakeLock.addEventListener("release", () => {
-      log("Wake Lock released.");
-    });
   } catch (err: any) {
     log("Wake Lock failed:", err.message);
   }
@@ -82,6 +79,7 @@ let scanLoopId: ReturnType<typeof setInterval> | null = null;
 let starting = false;
 
 let lastGlobalAdAt = Date.now(); 
+let lastTickAt = Date.now(); // สำหรับตรวจจับอาการนาฬิกาตาย
 const signalLostLogged = new Set<string>();
 
 const getMachineForDevice = (deviceName: string) => {
@@ -147,17 +145,22 @@ const teardownLEScan = () => {
   advListener = null;
 };
 
-const stopScanLoop = () => {
-  if (scanLoopId !== null) {
-    clearInterval(scanLoopId);
-    scanLoopId = null;
-  }
-};
-
 const scanLoopTick = () => {
   const now = Date.now();
   const state = useAutoLapScanner.getState();
 
+  // --- [Self-Healing] ตรวจจับ JavaScript โดนแช่แข็ง ---
+  if (now - lastTickAt > SELF_HEALING_THRESHOLD_MS) {
+    log("⚠️ System Freeze detected! Reviving Bluetooth...");
+    lastGlobalAdAt = now; 
+    teardownLEScan();
+    setTimeout(() => {
+      void useAutoLapScanner.getState().start();
+    }, 500);
+  }
+  lastTickAt = now;
+
+  // Watchdog เช็คบลูทูธตายเงียบ
   if (state.status === "scanning" && leScan !== null) {
     if (now - lastGlobalAdAt > WATCHDOG_TIMEOUT_MS) {
       log("watchdog: scan silently died, forcing restart...");
@@ -203,32 +206,8 @@ const scanLoopTick = () => {
     leScan === null &&
     !starting
   ) {
-    log("scan dropped unexpectedly — auto-restarting");
     void useAutoLapScanner.getState().start();
   }
-};
-
-const startScanLoop = () => {
-  if (scanLoopId !== null) return; 
-  log("scan loop start (interval", SCAN_LOOP_INTERVAL_MS, "ms)");
-  scanLoopId = setInterval(scanLoopTick, SCAN_LOOP_INTERVAL_MS);
-};
-
-const recordAdvertisement = (name: string, rssi: number, now: number) => {
-  signalLostLogged.delete(name);
-  useAutoLapScanner.setState((s) => {
-    return {
-      lastSeenAt: { ...s.lastSeenAt, [name]: now },
-      detectedDevices: {
-        ...s.detectedDevices,
-        [name]: { name, lastRssi: rssi, lastSeenAt: now, signalLost: false },
-      },
-    };
-  });
-  const known = useDeviceMappingStore
-    .getState()
-    .mappings.some((m) => m.device_name === name);
-  if (known) getTracker(name).push(rssi, now);
 };
 
 export const useAutoLapScanner = create<ScannerState>((set, get) => ({
@@ -248,17 +227,14 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
     
     starting = true;
     try {
-      const bt: any =
-        typeof navigator !== "undefined" ? (navigator as any).bluetooth : null;
-
+      const bt: any = typeof navigator !== "undefined" ? (navigator as any).bluetooth : null;
       if (!bt || typeof bt.requestLEScan !== "function") {
-        set({ status: "unsupported", error: null });
-        startScanLoop();
+        set({ status: "unsupported" });
         return;
       }
 
       teardownLEScan();
-      await requestWakeLock(); // พยายามเปิด Wake Lock ตอนเริ่มสแกน
+      await requestWakeLock();
       lastGlobalAdAt = Date.now(); 
 
       advListener = (event: any) => {
@@ -271,29 +247,29 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
       
       bt.addEventListener("advertisementreceived", advListener);
       leScan = await bt.requestLEScan({ acceptAllAdvertisements: true });
-      log("start: requestLEScan active");
+      
       set({ status: "scanning", error: null });
-      startScanLoop();
+      if (!scanLoopId) {
+        scanLoopId = setInterval(scanLoopTick, SCAN_LOOP_INTERVAL_MS);
+      }
     } catch (err: any) {
       teardownLEScan();
-      log("start error:", err?.message || err);
       set({ status: "error", error: err?.message || String(err) });
-      startScanLoop();
     } finally {
       starting = false;
     }
   },
 
   stop: () => {
-    log("stop");
     teardownLEScan();
-    stopScanLoop();
-    releaseWakeLock(); // ปิด Wake Lock เมื่อหยุดสแกน
+    if (scanLoopId) {
+      clearInterval(scanLoopId);
+      scanLoopId = null;
+    }
+    releaseWakeLock();
     trackers.forEach((t) => t.reset());
-    signalLostLogged.clear();
     set({
       status: "idle",
-      error: null,
       detectedDevices: {},
       smoothedRssi: {},
       lastPeak: {},
@@ -323,23 +299,18 @@ export const useAutoLapScannerLifecycle = () => {
     sync();
     
     const id = window.setInterval(sync, 1000);
-    window.addEventListener("storage", sync);
-    window.addEventListener("autolap-access-changed", sync);
-
+    
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
+        void requestWakeLock();
         const unlocked = checkAutoLapAccess();
-        if (unlocked) {
-          void requestWakeLock(); // ขอ Wake Lock ใหม่เมื่อตื่นขึ้นมา
-          void useAutoLapScanner.getState().start();
-        }
+        if (unlocked) void useAutoLapScanner.getState().start();
       }
     };
 
     const wakeUpOnTouch = () => {
       const unlocked = checkAutoLapAccess();
-      const status = useAutoLapScanner.getState().status;
-      if (unlocked && status !== "scanning") {
+      if (unlocked && useAutoLapScanner.getState().status !== "scanning") {
         void requestWakeLock();
         void useAutoLapScanner.getState().start();
       }
@@ -350,8 +321,6 @@ export const useAutoLapScannerLifecycle = () => {
 
     return () => {
       window.clearInterval(id);
-      window.removeEventListener("storage", sync);
-      window.removeEventListener("autolap-access-changed", sync);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("pointerdown", wakeUpOnTouch);
     };
