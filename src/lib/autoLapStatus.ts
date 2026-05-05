@@ -1,6 +1,3 @@
-// Per-athlete signal status helpers, derived from the global scanner store
-// and the athlete↔device mapping. UI-only — no state machine writes here.
-
 import { useEffect, useState } from "react";
 import { useDeviceMappingStore } from "@/lib/deviceMapping";
 import {
@@ -14,7 +11,6 @@ export type AthleteSignalStatus = "none" | "in-range" | "stay";
 
 export interface AthleteSignal {
   status: AthleteSignalStatus;
-  /** True if we have a recent advertisement for the device. */
   present: boolean;
   smoothedRssi: number | null;
   inRangeSince: number | null;
@@ -40,14 +36,10 @@ export const useAthleteSignal = (athleteId: string): AthleteSignal => {
     deviceName ? s.lastSeenAt[deviceName] ?? null : null
   );
 
-  // ✅ FIX: ทำให้เวลา reactive
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    const t = setInterval(() => {
-      setNow(Date.now());
-    }, 1000); // ปรับเป็น 500 ได้ถ้าอยากลื่นขึ้น
-
+    const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -55,11 +47,13 @@ export const useAthleteSignal = (athleteId: string): AthleteSignal => {
     !!deviceName && lastSeenAt !== null && now - lastSeenAt < SIGNAL_FRESH_MS;
 
   let status: AthleteSignalStatus = "none";
+
   if (present && phase === "in") {
     const heldLongEnough =
       inRangeSince !== null && now - inRangeSince >= STAY_DURATION_MS;
     const strong =
       smoothedRssi !== null && smoothedRssi >= RSSI_STRONG_THRESHOLD;
+
     status = heldLongEnough && strong ? "stay" : "in-range";
   }
 
