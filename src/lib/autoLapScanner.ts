@@ -20,8 +20,6 @@ export const STAY_DURATION_MS = 5_000;
 export const SIGNAL_FRESH_MS = 4_000;
 export const SCAN_LOOP_INTERVAL_MS = 2_500;
 export const SIGNAL_LOST_AFTER_MS = 30_000;
-
-// กำหนดเวลา Watchdog: ถ้า 45 วินาทีไม่มีสัญญาณใดๆ เลย = สแกนเนอร์โดน OS แอบปิด
 export const WATCHDOG_TIMEOUT_MS = 45_000; 
 
 const log = (...args: unknown[]) => {
@@ -57,7 +55,6 @@ let advListener: ((e: any) => void) | null = null;
 let scanLoopId: ReturnType<typeof setInterval> | null = null;
 let starting = false;
 
-// ตัวแปรสำหรับ Watchdog เพื่อจำว่ารับสัญญาณบลูทูธ (ใดๆ ก็ได้) ครั้งล่าสุดเมื่อไหร่
 let lastGlobalAdAt = Date.now(); 
 const signalLostLogged = new Set<string>();
 
@@ -135,14 +132,11 @@ const scanLoopTick = () => {
   const now = Date.now();
   const state = useAutoLapScanner.getState();
 
-  // --- 🐕‍🦺 WATCHDOG: เช็กว่า Bluetooth โดนระบบปฏิบัติการตัดไปเงียบๆ หรือไม่ ---
   if (state.status === "scanning" && leScan !== null) {
     if (now - lastGlobalAdAt > WATCHDOG_TIMEOUT_MS) {
-      log("watchdog: scan silently died (screen off?), forcing restart...");
-      lastGlobalAdAt = now; // กันการรีสตาร์ทรัวๆ
-      teardownLEScan(); // ทำลายตัวเชื่อมต่อเก่าที่พังไปแล้ว
-      
-      // หน่วงเวลา 1 วิ แล้วสั่งเริ่มสแกนใหม่
+      log("watchdog: scan silently died, forcing restart...");
+      lastGlobalAdAt = now; 
+      teardownLEScan(); 
       setTimeout(() => {
         void useAutoLapScanner.getState().start();
       }, 1000);
@@ -181,7 +175,7 @@ const scanLoopTick = () => {
     typeof navigator !== "undefined" &&
     (navigator as any).bluetooth?.requestLEScan &&
     leScan === null &&
-    !starting // ป้องกันการ start ซ้อน
+    !starting
   ) {
     log("scan dropped unexpectedly — auto-restarting");
     void useAutoLapScanner.getState().start();
@@ -239,14 +233,10 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
       }
 
       teardownLEScan();
-
-      // อัปเดตเวลา Watchdog ทันทีที่เริ่มสแกนใหม่
       lastGlobalAdAt = Date.now(); 
 
       advListener = (event: any) => {
-        // --- 🐕‍🦺 WATCHDOG TRIGGER: รับรู้ว่าบลูทูธยังวิ่งเข้ามาอยู่ ---
         lastGlobalAdAt = Date.now(); 
-
         const name: string | undefined = event.device?.name;
         const rssi: number | undefined = event.rssi;
         if (!name || typeof rssi !== "number") return;
@@ -261,6 +251,7 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
     } catch (err: any) {
       teardownLEScan();
       log("start error:", err?.message || err);
+      // โดนบล็อกเพราะยังไม่คลิกจอ จะมาติดที่ Error นี้
       set({ status: "error", error: err?.message || String(err) });
       startScanLoop();
     } finally {
@@ -293,11 +284,15 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
   },
 }));
 
+// ---------------------------------------------------------------------------
+// Lifecycle hook: ผูกการทำงานและจัดการปัญหารีเฟรชจอ
+// ---------------------------------------------------------------------------
 export const useAutoLapScannerLifecycle = () => {
   useEffect(() => {
     const sync = () => {
       const unlocked = checkAutoLapAccess();
       const status = useAutoLapScanner.getState().status;
+      // พยายาม Start ตั้งแต่โหลดหน้าจอ
       if (unlocked && status === "idle") {
         log("access granted → starting scanner");
         void useAutoLapScanner.getState().start();
@@ -307,13 +302,33 @@ export const useAutoLapScannerLifecycle = () => {
       }
     };
     sync();
+    
     const id = window.setInterval(sync, 1000);
     window.addEventListener("storage", sync);
     window.addEventListener("autolap-access-changed", sync);
+
+    // --- พระเอกขี่ม้าขาว: ดักจับการแตะหน้าจอครั้งแรกหลัง Refresh ---
+    const wakeUpScanner = () => {
+      const unlocked = checkAutoLapAccess();
+      const status = useAutoLapScanner.getState().status;
+      
+      // ถ้าระบบยัง Unlock อยู่ แต่บลูทูธยังไม่เริ่มสแกน ให้สั่งรันทันทีที่นิ้วแตะจอ
+      if (unlocked && status !== "scanning") {
+        log("wakeUpScanner: User tapped the screen, reviving Bluetooth!");
+        void useAutoLapScanner.getState().start();
+      }
+    };
+
+    // ฝังตัวดักฟัง เมื่อคุณแตะหรือคลิกจอ มันจะสั่งตื่นทันที
+    window.addEventListener("pointerdown", wakeUpScanner);
+    window.addEventListener("click", wakeUpScanner);
+
     return () => {
       window.clearInterval(id);
       window.removeEventListener("storage", sync);
       window.removeEventListener("autolap-access-changed", sync);
+      window.removeEventListener("pointerdown", wakeUpScanner);
+      window.removeEventListener("click", wakeUpScanner);
     };
   }, []);
 };
