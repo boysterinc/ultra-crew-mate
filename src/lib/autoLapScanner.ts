@@ -95,3 +95,31 @@ setInterval(() => {
     }
   });
 }, 5000);
+import { useEffect } from "react";
+
+/**
+ * Global lifecycle hook for AutoLap Scanner
+ * Ensures scanner runs once and survives page navigation
+ */
+export const useAutoLapScannerLifecycle = () => {
+  useEffect(() => {
+    console.log("[AutoLap] lifecycle mounted");
+
+    // ป้องกัน undefined (กรณีโหลดไม่ครบ)
+    if (typeof window !== "undefined") {
+      // @ts-ignore
+      if (window.BluetoothManager?.start) {
+        console.log("[AutoLap] starting scanner...");
+        // @ts-ignore
+        window.BluetoothManager.start();
+      } else {
+        console.warn("[AutoLap] BluetoothManager not found");
+      }
+    }
+
+    return () => {
+      console.log("[AutoLap] lifecycle unmounted");
+      // ❗ ไม่ stop scanner เพราะต้องการให้รันตลอด
+    };
+  }, []);
+};
