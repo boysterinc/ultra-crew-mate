@@ -1,5 +1,7 @@
 // Per-athlete signal status helpers, derived from the global scanner store
 // and the athlete↔device mapping. UI-only — no state machine writes here.
+
+import { useEffect, useState } from "react";
 import { useDeviceMappingStore } from "@/lib/deviceMapping";
 import {
   useAutoLapScanner,
@@ -38,7 +40,17 @@ export const useAthleteSignal = (athleteId: string): AthleteSignal => {
     deviceName ? s.lastSeenAt[deviceName] ?? null : null
   );
 
-  const now = Date.now();
+  // ✅ FIX: ทำให้เวลา reactive
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setNow(Date.now());
+    }, 1000); // ปรับเป็น 500 ได้ถ้าอยากลื่นขึ้น
+
+    return () => clearInterval(t);
+  }, []);
+
   const present =
     !!deviceName && lastSeenAt !== null && now - lastSeenAt < SIGNAL_FRESH_MS;
 
