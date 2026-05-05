@@ -15,7 +15,7 @@ interface AutoLapState {
 export const RSSI_STRONG_THRESHOLD = -70;
 export const STAY_DURATION_MS = 5000;
 export const SIGNAL_FRESH_MS = 10000;
-const SIGNAL_LOST_TIMEOUT = 30000; // 🔥 สำคัญ
+const SIGNAL_LOST_TIMEOUT = 30000;
 
 export const useAutoLapScanner = create<AutoLapState>((set, get) => ({
   smoothedRssi: {},
@@ -26,10 +26,11 @@ export const useAutoLapScanner = create<AutoLapState>((set, get) => ({
   feedRssiSample: (deviceName, rssi) => {
     const now = Date.now();
 
+    console.log("[Bluetooth] RSSI", deviceName, rssi); // 🔥 debug
+
     set((state) => {
       const prev = state.smoothedRssi[deviceName];
 
-      // ✅ smoothing
       const smoothed =
         prev === null || prev === undefined
           ? rssi
@@ -55,13 +56,15 @@ export const useAutoLapScanner = create<AutoLapState>((set, get) => ({
         },
         lastSeenAt: {
           ...state.lastSeenAt,
-          [deviceName]: now, // 🔥 สำคัญมาก (fix reconnect)
+          [deviceName]: now, // 🔥 สำคัญ
         },
       };
     });
   },
 
   resetDevice: (deviceName) => {
+    console.log("[AutoLap] RESET DEVICE:", deviceName);
+
     set((state) => ({
       smoothedRssi: { ...state.smoothedRssi, [deviceName]: null },
       phase: { ...state.phase, [deviceName]: "out" },
@@ -72,18 +75,19 @@ export const useAutoLapScanner = create<AutoLapState>((set, get) => ({
 }));
 
 // ===============================
-// 🔥 GLOBAL CLEANUP LOOP (สำคัญสุด)
+// 🔥 LOOP ตรวจว่า signal หาย
 // ===============================
 setInterval(() => {
   const state = useAutoLapScanner.getState();
   const now = Date.now();
+
+  console.log("[Bluetooth] scanning tick", now); // 🔥 debug
 
   Object.keys(state.lastSeenAt).forEach((device) => {
     const last = state.lastSeenAt[device];
 
     if (!last) return;
 
-    // ❌ ถ้าหายเกิน 30 วิ → reset state
     if (now - last > SIGNAL_LOST_TIMEOUT) {
       console.log("[AutoLap] signal lost → reset:", device);
 
