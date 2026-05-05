@@ -1,4 +1,4 @@
-// Global Bluetooth Manager for AutoLap (Full Version with Self-Healing)
+// Global Bluetooth Manager for AutoLap (Robust Version)
 // ---------------------------------------------------------------------------
 import { create } from "zustand";
 import { useEffect } from "react";
@@ -13,39 +13,27 @@ import {
   RssiPhase,
 } from "@/lib/rssiTracker";
 
-export type ScannerStatus = "idle" | "scanning" | "unsupported" | "error";
+export type ScannerStatus = "idle" | "scanning" | "unsupported" | "error" | "waiting-gesture";
 
-export const RSSI_STRONG_THRESHOLD = -80;
-export const STAY_DURATION_MS = 5_000;
-export const SIGNAL_FRESH_MS = 4_000;
-export const SCAN_LOOP_INTERVAL_MS = 2_500;
-export const SIGNAL_LOST_AFTER_MS = 30_000;
-export const WATCHDOG_TIMEOUT_MS = 45_000; 
-export const SELF_HEALING_THRESHOLD_MS = 10_000; // หากเวลาค้างเกิน 10 วิ ให้สะดุ้งตื่น
+export const SCAN_LOOP_INTERVAL_MS = 2500;
+export const WATCHDOG_TIMEOUT_MS = 45000; 
+export const SIGNAL_LOST_AFTER_MS = 30000;
 
 const log = (...args: unknown[]) => {
-  // eslint-disable-next-line no-console
   console.log("[BluetoothManager]", ...args);
 };
 
-// --- [Screen Wake Lock] ระบบกันหน้าจอหลับ ---
+// --- Screen Wake Lock Management ---
 let wakeLock: any = null;
-
 const requestWakeLock = async () => {
   if (typeof navigator === "undefined" || !("wakeLock" in navigator)) return;
   try {
-    wakeLock = await (navigator as any).wakeLock.request("screen");
-    log("🔓 Wake Lock active: Screen will stay ON.");
-  } catch (err: any) {
-    log("Wake Lock failed:", err.message);
-  }
-};
-
-const releaseWakeLock = () => {
-  if (wakeLock) {
-    wakeLock.release().then(() => {
-      wakeLock = null;
-    });
+    if (!wakeLock) {
+      wakeLock = await (navigator as any).wakeLock.request("screen");
+      log("🔓 Wake Lock active.");
+    }
+  } catch (err) {
+    log("Wake Lock failed:", err);
   }
 };
 
@@ -73,22 +61,11 @@ interface ScannerState {
 }
 
 const trackers = new Map<string, RssiTracker>();
-let leScan: { stop: () => void; active?: boolean } | null = null;
+let leScan: { stop: () => void } | null = null;
 let advListener: ((e: any) => void) | null = null;
 let scanLoopId: ReturnType<typeof setInterval> | null = null;
 let starting = false;
-
-let lastGlobalAdAt = Date.now(); 
-let lastTickAt = Date.now(); // สำหรับตรวจจับอาการนาฬิกาตาย
-const signalLostLogged = new Set<string>();
-
-const getMachineForDevice = (deviceName: string) => {
-  const mapping = useDeviceMappingStore
-    .getState()
-    .mappings.find((m) => m.device_name === deviceName);
-  if (!mapping) return null;
-  return useAutoLapRegistry.getState().getMachine(mapping.athlete_id);
-};
+let lastGlobalAdAt = Date.now();
 
 const getTracker = (deviceName: string): RssiTracker => {
   let t = trackers.get(deviceName);
@@ -99,34 +76,23 @@ const getTracker = (deviceName: string): RssiTracker => {
       useAutoLapScanner.setState((s) => ({
         smoothedRssi: { ...s.smoothedRssi, [deviceName]: smoothed },
         phase: { ...s.phase, [deviceName]: phase },
-        inRangeSince: {
-          ...s.inRangeSince,
-          [deviceName]: phase === "in" ? now : null,
-        },
+        inRangeSince: { ...s.inRangeSince, [deviceName]: phase === "in" ? now : null },
       }));
-      const machine = getMachineForDevice(deviceName);
+      const mapping = useDeviceMappingStore.getState().mappings.find((m) => m.device_name === deviceName);
+      const machine = mapping ? useAutoLapRegistry.getState().getMachine(mapping.athlete_id) : null;
       if (machine) {
         if (phase === "in") machine.signalSeen(now);
         else machine.signalLost(now);
       }
     },
     onPeak: (event) => {
-      log("peak", deviceName, "rssi=", event.peakRssi.toFixed(1), "at", event.peakAt);
-      useAutoLapScanner.setState((s) => ({
-        lastPeak: { ...s.lastPeak, [deviceName]: event },
-      }));
-      
-      const machine = getMachineForDevice(deviceName);
-      if (machine) {
-        const isAccepted = machine.lapTrigger(event.peakAt);
-        if (isAccepted) {
-          const mapping = useDeviceMappingStore.getState().mappings.find((m) => m.device_name === deviceName);
-          if (mapping) {
-            useRaceStore.getState().addManualLap(mapping.athlete_id, event.peakAt);
-            log("💾 AutoLap Saved for athlete:", mapping.athlete_id);
-          }
+      const mapping = useDeviceMappingStore.getState().mappings.find((m) => m.device_name === deviceName);
+      if (mapping) {
+        const machine = useAutoLapRegistry.getState().getMachine(mapping.athlete_id);
+        if (machine && machine.lapTrigger(event.peakAt)) {
+          useRaceStore.getState().addManualLap(mapping.athlete_id, event.peakAt);
+          log("💾 Lap Recorded:", mapping.athlete_id);
         }
-        machine.signalLost(event.exitedAt);
       }
     },
   });
@@ -134,80 +100,45 @@ const getTracker = (deviceName: string): RssiTracker => {
   return t;
 };
 
-const teardownLEScan = () => {
-  try { leScan?.stop(); } catch { /* ignore */ }
+const stopEverything = () => {
+  if (leScan) try { leScan.stop(); } catch (e) {}
   leScan = null;
-  if (advListener && (navigator as any).bluetooth?.removeEventListener) {
-    try {
-      (navigator as any).bluetooth.removeEventListener("advertisementreceived", advListener);
-    } catch { /* ignore */ }
+  if (advListener && (navigator as any).bluetooth) {
+    (navigator as any).bluetooth.removeEventListener("advertisementreceived", advListener);
   }
   advListener = null;
+  starting = false;
 };
 
 const scanLoopTick = () => {
   const now = Date.now();
   const state = useAutoLapScanner.getState();
 
-  // --- [Self-Healing] ตรวจจับ JavaScript โดนแช่แข็ง ---
-  if (now - lastTickAt > SELF_HEALING_THRESHOLD_MS) {
-    log("⚠️ System Freeze detected! Reviving Bluetooth...");
-    lastGlobalAdAt = now; 
-    teardownLEScan();
-    setTimeout(() => {
-      void useAutoLapScanner.getState().start();
-    }, 500);
-  }
-  lastTickAt = now;
-
-  // Watchdog เช็คบลูทูธตายเงียบ
-  if (state.status === "scanning" && leScan !== null) {
-    if (now - lastGlobalAdAt > WATCHDOG_TIMEOUT_MS) {
-      log("watchdog: scan silently died, forcing restart...");
-      lastGlobalAdAt = now; 
-      teardownLEScan(); 
-      setTimeout(() => {
-        void useAutoLapScanner.getState().start();
-      }, 1000);
-    }
+  // Watchdog: ถ้าเงียบไปนานเกินไป สั่ง Restart
+  if (state.status === "scanning" && now - lastGlobalAdAt > WATCHDOG_TIMEOUT_MS) {
+    log("⚠️ Watchdog trigger: Restarting Scan...");
+    void state.start();
+    return;
   }
 
   trackers.forEach((t) => t.tick(now));
-
-  const next: Record<string, DetectedDevice> = {};
+  
+  const nextDevices: Record<string, DetectedDevice> = {};
   let changed = false;
   for (const [name, dev] of Object.entries(state.detectedDevices)) {
-    const age = now - dev.lastSeenAt;
-    const lost = age > SIGNAL_LOST_AFTER_MS;
-    if (lost && !dev.signalLost) {
+    const isLost = now - dev.lastSeenAt > SIGNAL_LOST_AFTER_MS;
+    if (isLost !== dev.signalLost) {
       changed = true;
-      if (!signalLostLogged.has(name)) {
-        log("signal lost", name, "age=", age, "ms");
-        signalLostLogged.add(name);
-      }
-      next[name] = { ...dev, signalLost: true };
+      nextDevices[name] = { ...dev, signalLost: isLost };
     } else {
-      if (!lost) signalLostLogged.delete(name);
-      next[name] = dev;
+      nextDevices[name] = dev;
     }
   }
-  
-  if (changed) {
-    useAutoLapScanner.setState({ detectedDevices: next, currentTime: now });
-  } else {
-    useAutoLapScanner.setState({ currentTime: now });
-  }
 
-  if (
-    checkAutoLapAccess() &&
-    state.status === "scanning" &&
-    typeof navigator !== "undefined" &&
-    (navigator as any).bluetooth?.requestLEScan &&
-    leScan === null &&
-    !starting
-  ) {
-    void useAutoLapScanner.getState().start();
-  }
+  useAutoLapScanner.setState({ 
+    currentTime: now, 
+    ...(changed ? { detectedDevices: nextDevices } : {}) 
+  });
 };
 
 export const useAutoLapScanner = create<ScannerState>((set, get) => ({
@@ -223,66 +154,67 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
 
   start: async () => {
     if (starting) return;
-    if (get().status === "scanning" && leScan !== null) return;
-    
     starting = true;
+    
     try {
-      const bt: any = typeof navigator !== "undefined" ? (navigator as any).bluetooth : null;
-      if (!bt || typeof bt.requestLEScan !== "function") {
+      const bt = (navigator as any).bluetooth;
+      if (!bt?.requestLEScan) {
         set({ status: "unsupported" });
         return;
       }
 
-      teardownLEScan();
-      await requestWakeLock();
-      lastGlobalAdAt = Date.now(); 
+      stopEverything();
+      lastGlobalAdAt = Date.now();
 
       advListener = (event: any) => {
-        lastGlobalAdAt = Date.now(); 
-        const name: string | undefined = event.device?.name;
-        const rssi: number | undefined = event.rssi;
-        if (!name || typeof rssi !== "number") return;
-        recordAdvertisement(name, rssi, Date.now());
+        lastGlobalAdAt = Date.now();
+        const name = event.device?.name;
+        const rssi = event.rssi;
+        if (!name || rssi === undefined) return;
+        
+        set((s) => ({
+          lastSeenAt: { ...s.lastSeenAt, [name]: Date.now() },
+          detectedDevices: {
+            ...s.detectedDevices,
+            [name]: { name, lastRssi: rssi, lastSeenAt: Date.now(), signalLost: false }
+          }
+        }));
+        
+        const isKnown = useDeviceMappingStore.getState().mappings.some(m => m.device_name === name);
+        if (isKnown) getTracker(name).push(rssi);
       };
-      
+
       bt.addEventListener("advertisementreceived", advListener);
       leScan = await bt.requestLEScan({ acceptAllAdvertisements: true });
       
+      log("✅ Scanning Active");
       set({ status: "scanning", error: null });
-      if (!scanLoopId) {
-        scanLoopId = setInterval(scanLoopTick, SCAN_LOOP_INTERVAL_MS);
-      }
+      if (!scanLoopId) scanLoopId = setInterval(scanLoopTick, SCAN_LOOP_INTERVAL_MS);
+      void requestWakeLock();
+
     } catch (err: any) {
-      teardownLEScan();
-      set({ status: "error", error: err?.message || String(err) });
+      stopEverything();
+      if (err.name === "NotAllowedError" || err.name === "SecurityError") {
+        set({ status: "waiting-gesture", error: "Please tap the screen to enable Bluetooth" });
+      } else {
+        set({ status: "error", error: err.message });
+      }
     } finally {
       starting = false;
     }
   },
 
   stop: () => {
-    teardownLEScan();
-    if (scanLoopId) {
-      clearInterval(scanLoopId);
-      scanLoopId = null;
-    }
-    releaseWakeLock();
-    trackers.forEach((t) => t.reset());
-    set({
-      status: "idle",
-      detectedDevices: {},
-      smoothedRssi: {},
-      lastPeak: {},
-      phase: {},
-      inRangeSince: {},
-      lastSeenAt: {},
-    });
+    stopEverything();
+    if (scanLoopId) clearInterval(scanLoopId);
+    scanLoopId = null;
+    set({ status: "idle", detectedDevices: {}, smoothedRssi: {}, lastPeak: {}, phase: {} });
   },
 
-  feedRssiSample: (deviceName, rssi, now = Date.now()) => {
-    lastGlobalAdAt = now;
-    recordAdvertisement(deviceName, rssi, now);
-  },
+  feedRssiSample: (name, rssi) => {
+    lastGlobalAdAt = Date.now();
+    getTracker(name).push(rssi);
+  }
 }));
 
 export const useAutoLapScannerLifecycle = () => {
@@ -290,39 +222,25 @@ export const useAutoLapScannerLifecycle = () => {
     const sync = () => {
       const unlocked = checkAutoLapAccess();
       const status = useAutoLapScanner.getState().status;
-      if (unlocked && status === "idle") {
+      if (unlocked && (status === "idle" || status === "error")) {
         void useAutoLapScanner.getState().start();
       } else if (!unlocked && status !== "idle") {
         useAutoLapScanner.getState().stop();
       }
     };
-    sync();
-    
-    const id = window.setInterval(sync, 1000);
-    
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void requestWakeLock();
-        const unlocked = checkAutoLapAccess();
-        if (unlocked) void useAutoLapScanner.getState().start();
+
+    const handleInteraction = () => {
+      const state = useAutoLapScanner.getState();
+      if (checkAutoLapAccess() && state.status !== "scanning") {
+        void state.start();
       }
     };
 
-    const wakeUpOnTouch = () => {
-      const unlocked = checkAutoLapAccess();
-      if (unlocked && useAutoLapScanner.getState().status !== "scanning") {
-        void requestWakeLock();
-        void useAutoLapScanner.getState().start();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("pointerdown", wakeUpOnTouch);
-
+    window.addEventListener("pointerdown", handleInteraction);
+    const interval = setInterval(sync, 2000);
     return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("pointerdown", wakeUpOnTouch);
+      clearInterval(interval);
+      window.removeEventListener("pointerdown", handleInteraction);
     };
   }, []);
 };
