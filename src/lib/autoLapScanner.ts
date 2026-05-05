@@ -1,15 +1,3 @@
-// Global Bluetooth Manager for AutoLap.
-// ---------------------------------------------------------------------------
-// Goals:
-//  - Singleton service that survives route changes (lives at module scope).
-//  - Continuous scan loop (2.5s interval) — only ONE loop ever runs.
-//  - Auto start when checkAutoLapAccess() is true, auto stop when false.
-//  - Tracks detected devices, last RSSI, last seen timestamp.
-//  - Marks a device as "signal lost" only after >30s without detection.
-//  - Auto-restart if the underlying scan stops unexpectedly.
-//  - Forwards RSSI samples into the existing per-device tracker / state machine
-//    pipeline so all previous AutoLap logic keeps working.
-// ---------------------------------------------------------------------------
 import { create } from "zustand";
 import { useEffect } from "react";
 import { checkAutoLapAccess } from "@/lib/autoLapAccess";
@@ -22,27 +10,18 @@ import {
   RssiPhase,
 } from "@/lib/rssiTracker";
 
-// --- Public constants -------------------------------------------------------
 export type ScannerStatus = "idle" | "scanning" | "unsupported" | "error";
 
 export const RSSI_STRONG_THRESHOLD = -65;
 export const STAY_DURATION_MS = 5_000;
 export const SIGNAL_FRESH_MS = 4_000;
-
-/** Continuous scan loop tick. Web Bluetooth's requestLEScan is itself
- *  continuous, so this loop is mainly used to: prune stale devices, emit
- *  signal-lost events, and verify the underlying scan is still alive. */
 export const SCAN_LOOP_INTERVAL_MS = 2_500;
-/** Mark a device as "signal lost" after this long with no advertisement. */
 export const SIGNAL_LOST_AFTER_MS = 30_000;
 
-// --- Debug log helper -------------------------------------------------------
 const log = (...args: unknown[]) => {
-  // eslint-disable-next-line no-console
   console.log("[BluetoothManager]", ...args);
 };
 
-// --- Detected device record -------------------------------------------------
 export interface DetectedDevice {
   name: string;
   lastRssi: number;
@@ -53,34 +32,24 @@ export interface DetectedDevice {
 interface ScannerState {
   status: ScannerStatus;
   error: string | null;
-  /** Map of deviceName → detected device record. */
+  currentTime: number; // เพิ่มเวลาแบบ Realtime
   detectedDevices: Record<string, DetectedDevice>;
-  /** smoothed RSSI per device name (UI). */
   smoothedRssi: Record<string, number | null>;
-  /** last peak event per device name. */
   lastPeak: Record<string, RssiPeakEvent | null>;
-  /** RSSI tracker phase per device. */
   phase: Record<string, RssiPhase>;
-  /** When the device entered "in" phase (null if "out"). */
   inRangeSince: Record<string, number | null>;
-  /** Last time we received any advertisement for the device. */
   lastSeenAt: Record<string, number | null>;
 
   start: () => Promise<void>;
   stop: () => void;
-  /** Inject an RSSI sample (real BLE bridge or test). */
   feedRssiSample: (deviceName: string, rssi: number, now?: number) => void;
 }
 
-// --- Module-level singletons (survive component unmounts / navigation) ------
 const trackers = new Map<string, RssiTracker>();
 let leScan: { stop: () => void; active?: boolean } | null = null;
 let advListener: ((e: any) => void) | null = null;
 let scanLoopId: ReturnType<typeof setInterval> | null = null;
-/** Guards against concurrent start() calls creating duplicate scans. */
 let starting = false;
-/** Tracks which device names we've already logged "signal lost" for, so the
- *  log doesn't spam every loop tick. */
 const signalLostLogged = new Set<string>();
 
 const getMachineForDevice = (deviceName: string) => {
@@ -128,21 +97,12 @@ const getTracker = (deviceName: string): RssiTracker => {
 };
 
 const teardownLEScan = () => {
-  try {
-    leScan?.stop();
-  } catch {
-    /* ignore */
-  }
+  try { leScan?.stop(); } catch { /* ignore */ }
   leScan = null;
   if (advListener && (navigator as any).bluetooth?.removeEventListener) {
     try {
-      (navigator as any).bluetooth.removeEventListener(
-        "advertisementreceived",
-        advListener
-      );
-    } catch {
-      /* ignore */
-    }
+      (navigator as any).bluetooth.removeEventListener("advertisementreceived", advListener);
+    } catch { /* ignore */ }
   }
   advListener = null;
 };
@@ -154,12 +114,13 @@ const stopScanLoop = () => {
   }
 };
 
-/** The continuous loop body — runs every SCAN_LOOP_INTERVAL_MS. */
 const scanLoopTick = () => {
   const now = Date.now();
   const state = useAutoLapScanner.getState();
 
-  // 1. Prune / mark signal-lost for devices not seen in >30s.
+  // สำคัญมาก: กระตุ้น Tracker ให้รู้ว่าเวลาผ่านไปแล้ว (แม้จะไม่มีสัญญาณเข้า)
+  trackers.forEach((t) => t.tick(now));
+
   const next: Record<string, DetectedDevice> = {};
   let changed = false;
   for (const [name, dev] of Object.entries(state.detectedDevices)) {
@@ -177,11 +138,14 @@ const scanLoopTick = () => {
       next[name] = dev;
     }
   }
+  
+  // อัปเดต currentTime เสมอเพื่อให้ UI หน้าจอขยับตามเวลาจริง
   if (changed) {
-    useAutoLapScanner.setState({ detectedDevices: next });
+    useAutoLapScanner.setState({ detectedDevices: next, currentTime: now });
+  } else {
+    useAutoLapScanner.setState({ currentTime: now });
   }
 
-  // 2. Auto-restart guard — if access still granted but scan died, restart.
   if (
     checkAutoLapAccess() &&
     state.status === "scanning" &&
@@ -195,30 +159,20 @@ const scanLoopTick = () => {
 };
 
 const startScanLoop = () => {
-  if (scanLoopId !== null) return; // single loop guarantee
+  if (scanLoopId !== null) return;
   log("scan loop start (interval", SCAN_LOOP_INTERVAL_MS, "ms)");
   scanLoopId = setInterval(scanLoopTick, SCAN_LOOP_INTERVAL_MS);
 };
 
-/** Record an advertisement (called from BLE listener or feedRssiSample). */
 const recordAdvertisement = (name: string, rssi: number, now: number) => {
   signalLostLogged.delete(name);
-  useAutoLapScanner.setState((s) => {
-    const prev = s.detectedDevices[name];
-    return {
-      lastSeenAt: { ...s.lastSeenAt, [name]: now },
-      detectedDevices: {
-        ...s.detectedDevices,
-        [name]: {
-          name,
-          lastRssi: rssi,
-          lastSeenAt: now,
-          signalLost: false,
-        },
-      },
-    };
-  });
-  // Only feed mapped devices into the AutoLap pipeline.
+  useAutoLapScanner.setState((s) => ({
+    lastSeenAt: { ...s.lastSeenAt, [name]: now },
+    detectedDevices: {
+      ...s.detectedDevices,
+      [name]: { name, lastRssi: rssi, lastSeenAt: now, signalLost: false },
+    },
+  }));
   const known = useDeviceMappingStore
     .getState()
     .mappings.some((m) => m.device_name === name);
@@ -228,6 +182,7 @@ const recordAdvertisement = (name: string, rssi: number, now: number) => {
 export const useAutoLapScanner = create<ScannerState>((set, get) => ({
   status: "idle",
   error: null,
+  currentTime: Date.now(),
   detectedDevices: {},
   smoothedRssi: {},
   lastPeak: {},
@@ -240,10 +195,8 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
     if (get().status === "scanning" && leScan !== null) return;
     starting = true;
     try {
-      const bt: any =
-        typeof navigator !== "undefined" ? (navigator as any).bluetooth : null;
+      const bt: any = typeof navigator !== "undefined" ? (navigator as any).bluetooth : null;
 
-      // No Web Bluetooth → still start the loop so feedRssiSample() works.
       if (!bt || typeof bt.requestLEScan !== "function") {
         set({ status: "unsupported", error: null });
         startScanLoop();
@@ -251,9 +204,7 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
         return;
       }
 
-      // Tear down any stale listener before re-attaching.
       teardownLEScan();
-
       advListener = (event: any) => {
         const name: string | undefined = event.device?.name;
         const rssi: number | undefined = event.rssi;
@@ -269,7 +220,6 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
       teardownLEScan();
       log("start error:", err?.message || err);
       set({ status: "error", error: err?.message || String(err) });
-      // Keep loop running — it will auto-retry on the next tick if access true.
       startScanLoop();
     } finally {
       starting = false;
@@ -300,10 +250,6 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
   },
 }));
 
-// ---------------------------------------------------------------------------
-// Lifecycle hook: tie the global manager to AutoLap access.
-// Mounted once at the app root → persists across page navigation.
-// ---------------------------------------------------------------------------
 export const useAutoLapScannerLifecycle = () => {
   useEffect(() => {
     const sync = () => {
