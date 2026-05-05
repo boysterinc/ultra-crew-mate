@@ -2,10 +2,10 @@
 // ระบบกรองสัญญาณและหาจุด Peak (แม่นยำสูงและกัน Noise)
 // ---------------------------------------------------------------------------
 
-export const RSSI_WINDOW_MS = 5_000;        // ช่วงเวลาถัวเฉลี่ย (5 วินาที) ยิ่งเยอะยิ่งกัน Noise ได้ดีแต่จะนับรอบช้าลง
+export const RSSI_WINDOW_MS = 3_000;        // ช่วงเวลาถัวเฉลี่ย (5 วินาที) ยิ่งเยอะยิ่งกัน Noise ได้ดีแต่จะนับรอบช้าลง
 export const RSSI_ENTRY_THRESHOLD = -85;    // เกณฑ์สัญญาณขาเข้า
 export const RSSI_EXIT_THRESHOLD = -95;     // เกณฑ์สัญญาณขาออก
-export const PEAK_DROP_THRESHOLD = 4;       // สัญญาณ "เฉลี่ย" ต้องดรอปลงจากจุดสูงสุดกี่ dBm ถึงจะเริ่มนับรอบ
+export const PEAK_DROP_THRESHOLD = 3;       // สัญญาณ "เฉลี่ย" ต้องดรอปลงจากจุดสูงสุดกี่ dBm ถึงจะเริ่มนับรอบ
 
 export type RssiPhase = "out" | "in";
 
