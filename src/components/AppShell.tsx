@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import BottomNav from "./BottomNav";
 import WeatherWidget from "./WeatherWidget";
+import ScannerStatusIndicator from "./ScannerStatusIndicator";
 
 interface AppShellProps {
   title: string;
@@ -34,8 +35,9 @@ const AppShell = ({ title, action, children, wide = false }: AppShellProps) => {
               </a>
             </p>
           </div>
-          <div className="justify-self-center min-w-0">
+          <div className="justify-self-center min-w-0 flex items-center gap-2">
             <WeatherWidget compact />
+            <ScannerStatusIndicator />
           </div>
           <div className="justify-self-end flex items-center gap-1">
             {action}
