@@ -13,23 +13,21 @@ import {
   RssiPhase,
 } from "@/lib/rssiTracker";
 
-// --- Public constants -------------------------------------------------------
 export type ScannerStatus = "idle" | "scanning" | "unsupported" | "error";
 
 export const RSSI_STRONG_THRESHOLD = -80;
 export const STAY_DURATION_MS = 5_000;
 export const SIGNAL_FRESH_MS = 4_000;
-
 export const SCAN_LOOP_INTERVAL_MS = 2_500;
 export const SIGNAL_LOST_AFTER_MS = 30_000;
 
-// --- Debug log helper -------------------------------------------------------
+// กำหนดเวลา Watchdog: ถ้า 45 วินาทีไม่มีสัญญาณใดๆ เลย = สแกนเนอร์โดน OS แอบปิด
+export const WATCHDOG_TIMEOUT_MS = 45_000; 
+
 const log = (...args: unknown[]) => {
-  // eslint-disable-next-line no-console
   console.log("[BluetoothManager]", ...args);
 };
 
-// --- Detected device record -------------------------------------------------
 export interface DetectedDevice {
   name: string;
   lastRssi: number;
@@ -53,12 +51,14 @@ interface ScannerState {
   feedRssiSample: (deviceName: string, rssi: number, now?: number) => void;
 }
 
-// --- Module-level singletons ------------------------------------------------
 const trackers = new Map<string, RssiTracker>();
 let leScan: { stop: () => void; active?: boolean } | null = null;
 let advListener: ((e: any) => void) | null = null;
 let scanLoopId: ReturnType<typeof setInterval> | null = null;
 let starting = false;
+
+// ตัวแปรสำหรับ Watchdog เพื่อจำว่ารับสัญญาณบลูทูธ (ใดๆ ก็ได้) ครั้งล่าสุดเมื่อไหร่
+let lastGlobalAdAt = Date.now(); 
 const signalLostLogged = new Set<string>();
 
 const getMachineForDevice = (deviceName: string) => {
@@ -97,18 +97,14 @@ const getTracker = (deviceName: string): RssiTracker => {
       
       const machine = getMachineForDevice(deviceName);
       if (machine) {
-        // ให้สมองกลเช็กว่านี่คือการเดินครบรอบจริงๆ 
         const isAccepted = machine.lapTrigger(event.peakAt);
-        
         if (isAccepted) {
-          // ถ้าผ่านเงื่อนไข ให้สั่งเซฟลงฐานข้อมูล (เหมือนคนกดปุ่ม LAP)
           const mapping = useDeviceMappingStore.getState().mappings.find((m) => m.device_name === deviceName);
           if (mapping) {
             useRaceStore.getState().addManualLap(mapping.athlete_id, event.peakAt);
             log("💾 AutoLap Saved for athlete:", mapping.athlete_id);
           }
         }
-        
         machine.signalLost(event.exitedAt);
       }
     },
@@ -118,21 +114,12 @@ const getTracker = (deviceName: string): RssiTracker => {
 };
 
 const teardownLEScan = () => {
-  try {
-    leScan?.stop();
-  } catch {
-    /* ignore */
-  }
+  try { leScan?.stop(); } catch { /* ignore */ }
   leScan = null;
   if (advListener && (navigator as any).bluetooth?.removeEventListener) {
     try {
-      (navigator as any).bluetooth.removeEventListener(
-        "advertisementreceived",
-        advListener
-      );
-    } catch {
-      /* ignore */
-    }
+      (navigator as any).bluetooth.removeEventListener("advertisementreceived", advListener);
+    } catch { /* ignore */ }
   }
   advListener = null;
 };
@@ -148,7 +135,20 @@ const scanLoopTick = () => {
   const now = Date.now();
   const state = useAutoLapScanner.getState();
 
-  // กระตุ้น Tracker ให้รู้ว่าเวลาผ่านไป
+  // --- 🐕‍🦺 WATCHDOG: เช็กว่า Bluetooth โดนระบบปฏิบัติการตัดไปเงียบๆ หรือไม่ ---
+  if (state.status === "scanning" && leScan !== null) {
+    if (now - lastGlobalAdAt > WATCHDOG_TIMEOUT_MS) {
+      log("watchdog: scan silently died (screen off?), forcing restart...");
+      lastGlobalAdAt = now; // กันการรีสตาร์ทรัวๆ
+      teardownLEScan(); // ทำลายตัวเชื่อมต่อเก่าที่พังไปแล้ว
+      
+      // หน่วงเวลา 1 วิ แล้วสั่งเริ่มสแกนใหม่
+      setTimeout(() => {
+        void useAutoLapScanner.getState().start();
+      }, 1000);
+    }
+  }
+
   trackers.forEach((t) => t.tick(now));
 
   const next: Record<string, DetectedDevice> = {};
@@ -180,7 +180,8 @@ const scanLoopTick = () => {
     state.status === "scanning" &&
     typeof navigator !== "undefined" &&
     (navigator as any).bluetooth?.requestLEScan &&
-    leScan === null
+    leScan === null &&
+    !starting // ป้องกันการ start ซ้อน
   ) {
     log("scan dropped unexpectedly — auto-restarting");
     void useAutoLapScanner.getState().start();
@@ -196,17 +197,11 @@ const startScanLoop = () => {
 const recordAdvertisement = (name: string, rssi: number, now: number) => {
   signalLostLogged.delete(name);
   useAutoLapScanner.setState((s) => {
-    const prev = s.detectedDevices[name];
     return {
       lastSeenAt: { ...s.lastSeenAt, [name]: now },
       detectedDevices: {
         ...s.detectedDevices,
-        [name]: {
-          name,
-          lastRssi: rssi,
-          lastSeenAt: now,
-          signalLost: false,
-        },
+        [name]: { name, lastRssi: rssi, lastSeenAt: now, signalLost: false },
       },
     };
   });
@@ -230,6 +225,7 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
   start: async () => {
     if (starting) return;
     if (get().status === "scanning" && leScan !== null) return;
+    
     starting = true;
     try {
       const bt: any =
@@ -244,12 +240,19 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
 
       teardownLEScan();
 
+      // อัปเดตเวลา Watchdog ทันทีที่เริ่มสแกนใหม่
+      lastGlobalAdAt = Date.now(); 
+
       advListener = (event: any) => {
+        // --- 🐕‍🦺 WATCHDOG TRIGGER: รับรู้ว่าบลูทูธยังวิ่งเข้ามาอยู่ ---
+        lastGlobalAdAt = Date.now(); 
+
         const name: string | undefined = event.device?.name;
         const rssi: number | undefined = event.rssi;
         if (!name || typeof rssi !== "number") return;
         recordAdvertisement(name, rssi, Date.now());
       };
+      
       bt.addEventListener("advertisementreceived", advListener);
       leScan = await bt.requestLEScan({ acceptAllAdvertisements: true });
       log("start: requestLEScan active");
@@ -284,14 +287,12 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
   },
 
   feedRssiSample: (deviceName, rssi, now = Date.now()) => {
+    lastGlobalAdAt = now;
     log("rssi", deviceName, rssi);
     recordAdvertisement(deviceName, rssi, now);
   },
 }));
 
-// ---------------------------------------------------------------------------
-// Lifecycle hook: tie the global manager to AutoLap access.
-// ---------------------------------------------------------------------------
 export const useAutoLapScannerLifecycle = () => {
   useEffect(() => {
     const sync = () => {
