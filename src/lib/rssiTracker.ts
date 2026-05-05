@@ -1,7 +1,7 @@
 // Step 5+6: RSSI tracker per device.
-export const RSSI_WINDOW_MS = 5_000;
-export const RSSI_ENTRY_THRESHOLD = -75;
-export const RSSI_EXIT_THRESHOLD = -85;
+export const RSSI_WINDOW_MS = 5_000;        // moving-average window
+export const RSSI_ENTRY_THRESHOLD = -85;    // ปรับให้ไวขึ้นสำหรับ Smartwatch (เดิม -75)
+export const RSSI_EXIT_THRESHOLD = -95;     // ปรับให้หลุดระยะยากขึ้น (เดิม -85)
 
 export type RssiPhase = "out" | "in";
 
@@ -28,7 +28,7 @@ export interface RssiTrackerOptions {
 
 export interface RssiTracker {
   push: (rssi: number, now?: number) => void;
-  tick: (now?: number) => void; // เพิ่มฟังก์ชัน tick
+  tick: (now?: number) => void;
   getSmoothed: () => number | null;
   getPhase: () => RssiPhase;
   reset: () => void;
@@ -60,7 +60,6 @@ export function createRssiTracker(
     return sum / samples.length;
   };
 
-  // แยกฟังก์ชันเช็กขาออก เพื่อให้ tick เอาไปใช้ได้ด้วย
   const checkExit = (now: number, avg: number | null) => {
     if (phase === "in") {
       if (avg === null || avg < exitTh) {
