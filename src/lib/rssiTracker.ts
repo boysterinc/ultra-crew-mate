@@ -1,27 +1,19 @@
 // Step 5+6: RSSI tracker per device.
-// - Continuously ingests RSSI samples (dBm, negative numbers; closer = higher).
-// - Detects Entry → Peak → Exit transitions vs. a configurable threshold.
-// - Records Peak RSSI and the timestamp at peak (used as the lap time).
-// - Smooths samples with a 5-second moving average to reject signal-drop noise.
-//
-// This file does NOT touch the AutoLap state machine. Consumers wire the
-// "peak detected" callback to machine.lapTrigger() / signalSeen / signalLost.
-
-export const RSSI_WINDOW_MS = 5_000;        // moving-average window
-export const RSSI_ENTRY_THRESHOLD = -75;    // dBm: smoothed >= this = "in range"
-export const RSSI_EXIT_THRESHOLD = -85;     // dBm: smoothed <  this = "out of range" (hysteresis)
+export const RSSI_WINDOW_MS = 5_000;
+export const RSSI_ENTRY_THRESHOLD = -75;
+export const RSSI_EXIT_THRESHOLD = -85;
 
 export type RssiPhase = "out" | "in";
 
 export interface RssiSample {
-  t: number;     // timestamp ms
-  rssi: number;  // dBm
+  t: number;
+  rssi: number;
 }
 
 export interface RssiPeakEvent {
   deviceName: string;
   peakRssi: number;
-  peakAt: number;       // ms timestamp of the peak — used as lap time
+  peakAt: number;
   enteredAt: number;
   exitedAt: number;
 }
@@ -36,15 +28,12 @@ export interface RssiTrackerOptions {
 
 export interface RssiTracker {
   push: (rssi: number, now?: number) => void;
+  tick: (now?: number) => void; // เพิ่มฟังก์ชัน tick
   getSmoothed: () => number | null;
   getPhase: () => RssiPhase;
   reset: () => void;
 }
 
-/**
- * Create an RSSI tracker for a single device name.
- * Smooths via simple moving average over the last `windowMs` samples.
- */
 export function createRssiTracker(
   deviceName: string,
   opts: RssiTrackerOptions = {}
@@ -71,6 +60,28 @@ export function createRssiTracker(
     return sum / samples.length;
   };
 
+  // แยกฟังก์ชันเช็กขาออก เพื่อให้ tick เอาไปใช้ได้ด้วย
+  const checkExit = (now: number, avg: number | null) => {
+    if (phase === "in") {
+      if (avg === null || avg < exitTh) {
+        if (enteredAt !== null && peakRssi !== null && peakAt !== null) {
+          opts.onPeak?.({
+            deviceName,
+            peakRssi,
+            peakAt,
+            enteredAt,
+            exitedAt: now,
+          });
+        }
+        phase = "out";
+        enteredAt = null;
+        peakRssi = null;
+        peakAt = null;
+        opts.onPhaseChange?.(phase, avg !== null ? avg : -100);
+      }
+    }
+  };
+
   return {
     push: (rssi, now = Date.now()) => {
       samples.push({ t: now, rssi });
@@ -78,7 +89,6 @@ export function createRssiTracker(
       const avg = smoothed();
       if (avg === null) return;
 
-      // Entry: smoothed crosses above entry threshold.
       if (phase === "out" && avg >= entryTh) {
         phase = "in";
         enteredAt = now;
@@ -88,34 +98,18 @@ export function createRssiTracker(
         return;
       }
 
-      // While "in": track peak (highest = closest, dBm closer to 0).
       if (phase === "in") {
         if (peakRssi === null || avg > peakRssi) {
           peakRssi = avg;
           peakAt = now;
         }
-        // Exit: smoothed falls below exit threshold (hysteresis).
-        if (avg < exitTh) {
-          if (
-            enteredAt !== null &&
-            peakRssi !== null &&
-            peakAt !== null
-          ) {
-            opts.onPeak?.({
-              deviceName,
-              peakRssi,
-              peakAt,
-              enteredAt,
-              exitedAt: now,
-            });
-          }
-          phase = "out";
-          enteredAt = null;
-          peakRssi = null;
-          peakAt = null;
-          opts.onPhaseChange?.(phase, avg);
-        }
+        checkExit(now, avg);
       }
+    },
+    tick: (now = Date.now()) => {
+      trim(now);
+      const avg = smoothed();
+      checkExit(now, avg);
     },
     getSmoothed: smoothed,
     getPhase: () => phase,
