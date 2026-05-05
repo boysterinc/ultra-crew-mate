@@ -12,7 +12,7 @@ import {
 
 export type ScannerStatus = "idle" | "scanning" | "unsupported" | "error";
 
-export const RSSI_STRONG_THRESHOLD = -65;
+export const RSSI_STRONG_THRESHOLD = -80; // ปรับให้สถานะ UI ขึ้นว่าสัญญาณแรงได้ง่ายขึ้น (เดิม -65)
 export const STAY_DURATION_MS = 5_000;
 export const SIGNAL_FRESH_MS = 4_000;
 export const SCAN_LOOP_INTERVAL_MS = 2_500;
@@ -32,7 +32,7 @@ export interface DetectedDevice {
 interface ScannerState {
   status: ScannerStatus;
   error: string | null;
-  currentTime: number; // เพิ่มเวลาแบบ Realtime
+  currentTime: number;
   detectedDevices: Record<string, DetectedDevice>;
   smoothedRssi: Record<string, number | null>;
   lastPeak: Record<string, RssiPeakEvent | null>;
@@ -118,7 +118,6 @@ const scanLoopTick = () => {
   const now = Date.now();
   const state = useAutoLapScanner.getState();
 
-  // สำคัญมาก: กระตุ้น Tracker ให้รู้ว่าเวลาผ่านไปแล้ว (แม้จะไม่มีสัญญาณเข้า)
   trackers.forEach((t) => t.tick(now));
 
   const next: Record<string, DetectedDevice> = {};
@@ -139,7 +138,6 @@ const scanLoopTick = () => {
     }
   }
   
-  // อัปเดต currentTime เสมอเพื่อให้ UI หน้าจอขยับตามเวลาจริง
   if (changed) {
     useAutoLapScanner.setState({ detectedDevices: next, currentTime: now });
   } else {
