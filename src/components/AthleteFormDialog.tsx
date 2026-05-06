@@ -268,9 +268,9 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
               goalDisplay = `${hh}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
             }
             return (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-3 items-end">
                 <div className="space-y-2">
-                  <Label htmlFor="lap">km/lap</Label>
+                  <Label htmlFor="lap" className="text-xs whitespace-nowrap block h-4 leading-4">km/lap</Label>
                   <Input
                     id="lap"
                     inputMode="decimal"
@@ -280,7 +280,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pace-bottom">Target pace (min/{unit})</Label>
+                  <Label htmlFor="pace-bottom" className="text-xs whitespace-nowrap block h-4 leading-4">Target pace (min/{unit})</Label>
                   <Input
                     id="pace-bottom"
                     inputMode="numeric"
@@ -301,7 +301,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Goal Finish Time</Label>
+                  <Label className="text-xs whitespace-nowrap block h-4 leading-4 text-muted-foreground">Goal Finish Time</Label>
                   <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm tabular">
                     {goalDisplay}
                   </div>
