@@ -152,30 +152,42 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
           <DialogDescription>Set the athlete name, loop distance, and total target.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Photo</Label>
-            <div className="flex items-center gap-3">
-              <Avatar className="h-14 w-14">
-                {photoUrl && <AvatarImage src={photoUrl} alt={name || "athlete"} />}
-                <AvatarFallback>
-                  {(name.trim()[0] || "?").toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => onPickPhoto(e.target.files?.[0])}
-              />
-              <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()} className="gap-1.5">
-                <Upload className="h-4 w-4" /> {photoUrl ? "Change" : "Upload"}
-              </Button>
-              {photoUrl && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setPhotoUrl(undefined)} className="gap-1.5">
-                  <X className="h-4 w-4" /> Remove
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2 flex-1">
+              <Label>Photo</Label>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-14 w-14">
+                  {photoUrl && <AvatarImage src={photoUrl} alt={name || "athlete"} />}
+                  <AvatarFallback>
+                    {(name.trim()[0] || "?").toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => onPickPhoto(e.target.files?.[0])}
+                />
+                <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()} className="gap-1.5">
+                  <Upload className="h-4 w-4" /> {photoUrl ? "Change" : "Upload"}
                 </Button>
-              )}
+                {photoUrl && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setPhotoUrl(undefined)} className="gap-1.5">
+                    <X className="h-4 w-4" /> Remove
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2 w-24">
+              <Label htmlFor="alert">Alert (min)</Label>
+              <Input
+                id="alert"
+                inputMode="decimal"
+                value={alertMinutes}
+                onChange={(e) => setAlertMinutes(e.target.value)}
+                placeholder="3"
+              />
             </div>
           </div>
           <div className="space-y-2">
@@ -310,50 +322,101 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
             </ToggleGroup>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="lap">Lap ({unit})</Label>
-              <Input
-                id="lap"
-                inputMode="decimal"
-                value={lapDistance}
-                onChange={(e) => setLapDistance(e.target.value)}
-                placeholder="6.7"
-              />
-            </div>
-            {!selectedEvent ? (
-              <div className="space-y-2">
-                <Label htmlFor="target">Target ({unit})</Label>
-                <Input
-                  id="target"
-                  inputMode="decimal"
-                  value={targetDistance}
-                  onChange={(e) => setTargetDistance(e.target.value)}
-                  placeholder="100"
-                />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">Target ({unit})</Label>
-                <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm tabular">
-                  {derivedTarget > 0 ? derivedTarget.toFixed(2) : "—"}
+          {selectedEvent?.kind === "distance" ? (() => {
+            const distKm = selectedEvent.distanceKm ?? 0;
+            const distInUnit = unit === "mi" ? distKm / 1.609344 : distKm;
+            const parseMS = (s: string): number => {
+              if (!s) return 0;
+              const t = s.trim();
+              const colon = t.match(/^(\d+):(\d{1,2})$/);
+              if (colon) return parseInt(colon[1], 10) * 60 + parseInt(colon[2], 10);
+              const dec = parseFloat(t);
+              if (!isNaN(dec) && dec > 0) return dec * 60;
+              return 0;
+            };
+            const secPerUnit = parseMS(paceMS);
+            let goalDisplay = "—";
+            if (secPerUnit > 0 && distInUnit > 0) {
+              const totalSec = secPerUnit * distInUnit;
+              const hh = Math.floor(totalSec / 3600);
+              const mm = Math.floor((totalSec % 3600) / 60);
+              const ss = Math.round(totalSec % 60);
+              goalDisplay = `${hh}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+            }
+            return (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="lap">km/lap</Label>
+                  <Input
+                    id="lap"
+                    inputMode="decimal"
+                    value={lapDistance}
+                    onChange={(e) => setLapDistance(e.target.value)}
+                    placeholder="6.7"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pace-bottom">Target pace (min/{unit})</Label>
+                  <Input
+                    id="pace-bottom"
+                    inputMode="numeric"
+                    value={paceMS}
+                    onChange={(e) => {
+                      setPaceMS(e.target.value);
+                      const sec = parseMS(e.target.value);
+                      if (sec > 0 && distInUnit > 0) {
+                        const totalMin = (sec * distInUnit) / 60;
+                        const hh = Math.floor(totalMin / 60);
+                        const mm = Math.round(totalMin - hh * 60);
+                        setGoalHM(`${hh}:${String(mm).padStart(2, "0")}`);
+                      } else {
+                        setGoalHM("");
+                      }
+                    }}
+                    placeholder="5:30"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Goal Finish Time</Label>
+                  <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm tabular">
+                    {goalDisplay}
+                  </div>
                 </div>
               </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="alert">Alert (min)</Label>
-              <Input
-                id="alert"
-                inputMode="decimal"
-                value={alertMinutes}
-                onChange={(e) => setAlertMinutes(e.target.value)}
-                placeholder="3"
-              />
+            );
+          })() : (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="lap">Lap ({unit})</Label>
+                <Input
+                  id="lap"
+                  inputMode="decimal"
+                  value={lapDistance}
+                  onChange={(e) => setLapDistance(e.target.value)}
+                  placeholder="6.7"
+                />
+              </div>
+              {!selectedEvent ? (
+                <div className="space-y-2">
+                  <Label htmlFor="target">Target ({unit})</Label>
+                  <Input
+                    id="target"
+                    inputMode="decimal"
+                    value={targetDistance}
+                    onChange={(e) => setTargetDistance(e.target.value)}
+                    placeholder="100"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Target ({unit})</Label>
+                  <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm tabular">
+                    {derivedTarget > 0 ? derivedTarget.toFixed(2) : "—"}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-          <p className="text-xs text-muted-foreground -mt-2">
-            Notify when predicted arrival is within this many minutes. Set to 0 to disable.
-          </p>
+          )}
 
           {previewLaps > 0 && (
             <div className="rounded-xl bg-secondary/60 p-3 text-sm">
