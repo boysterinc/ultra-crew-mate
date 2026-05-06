@@ -97,24 +97,30 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     } catch { /* ignore */ }
   };
 
-  // ระบบตรวจสอบเวลาฐาน 60 อย่างเข้มงวด
+  // ระบบตรวจสอบเวลาฐาน 60 (Lock x.01 - x.59)
   const parsePaceToSeconds = (s: string): number => {
     if (!s) return 0;
     const t = s.trim();
     
-    // ตรวจสอบว่ามีการใส่จุดทศนิยมหรือไม่ (เช่น 5.7)
-    if (t.includes('.')) return -2; 
-
-    const parts = t.split(':');
+    // แยกส่วนนาทีและวินาที (รองรับทั้ง . และ :)
+    const parts = t.includes(':') ? t.split(':') : t.split('.');
+    
     if (parts.length === 2) {
       const mins = parseInt(parts[0], 10) || 0;
-      const secs = parseInt(parts[1], 10) || 0;
-      // ล๊อคห้ามวินาทีเกิน 59
-      if (secs >= 60) return -1; 
+      const rawSecs = parts[1];
+      const secs = parseInt(rawSecs, 10) || 0;
+
+      // 1. ล๊อคห้ามวินาทีเกิน 59
+      if (secs > 59) return -1; 
+      
+      // 2. ล๊อคห้ามใส่แบบ 5.7 หรือ 5.8 (ต้องใส่ 5.07 หรือ 5:07)
+      // ตรวจสอบว่าถ้ามีแค่ตัวเลขเดียวและค่านั้น > 5 ให้ถือว่าผิดฐานเวลา
+      if (rawSecs.length === 1 && secs > 5) return -1;
+
       return mins * 60 + secs;
     }
     
-    // กรณีใส่ตัวเลขตัวเดียว (ถือว่าเป็นนาที)
+    // กรณีใส่ตัวเลขตัวเดียว (เช่น ใส่ 5) ถือว่าเป็น 5 นาที 0 วินาที
     const dec = parseFloat(t);
     return !isNaN(dec) && dec > 0 ? dec * 60 : 0;
   };
@@ -123,11 +129,8 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     setPaceMS(val);
     const sec = parsePaceToSeconds(val);
 
-    if (sec === -2) {
-      setPaceError("กรุณาใช้เครื่องหมาย : แทนจุด (เช่น 5:30)");
-      return;
-    } else if (sec === -1) {
-      setPaceError("วินาทีต้องไม่เกิน 59 (เช่น 5:59)");
+    if (sec === -1) {
+      setPaceError("รูปแบบเวลาผิด! วินาทีต้องอยู่ระหว่าง .01 ถึง .59 เท่านั้น");
       return;
     } else {
       setPaceError(null);
@@ -266,10 +269,10 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
                   value={paceMS} 
                   onChange={(e) => handlePaceChange(e.target.value, kmToUnit(selectedEvent?.distanceKm ?? 0), selectedEvent?.kind ?? 'distance')} 
                   placeholder="5:30"
-                  className={`pr-16 ${paceError ? "border-destructive ring-destructive" : ""}`}
+                  className={`pr-14 ${paceError ? "border-destructive ring-destructive" : ""}`}
                 />
                 <span className="absolute right-3 text-[10px] text-muted-foreground/60 pointer-events-none">
-                  นาที:วินาที
+                  (mm:ss)
                 </span>
               </div>
             </div>
@@ -284,8 +287,8 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
           </div>
 
           {paceError && (
-            <div className="flex items-center gap-2 text-xs text-destructive font-medium animate-in fade-in slide-in-from-top-1">
-              <AlertCircle className="h-3 w-3" /> {paceError}
+            <div className="flex items-start gap-2 text-[11px] text-destructive font-medium animate-in fade-in slide-in-from-top-1">
+              <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" /> {paceError}
             </div>
           )}
 
