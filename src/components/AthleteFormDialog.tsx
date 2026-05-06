@@ -152,30 +152,42 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
           <DialogDescription>Set the athlete name, loop distance, and total target.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Photo</Label>
-            <div className="flex items-center gap-3">
-              <Avatar className="h-14 w-14">
-                {photoUrl && <AvatarImage src={photoUrl} alt={name || "athlete"} />}
-                <AvatarFallback>
-                  {(name.trim()[0] || "?").toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => onPickPhoto(e.target.files?.[0])}
-              />
-              <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()} className="gap-1.5">
-                <Upload className="h-4 w-4" /> {photoUrl ? "Change" : "Upload"}
-              </Button>
-              {photoUrl && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setPhotoUrl(undefined)} className="gap-1.5">
-                  <X className="h-4 w-4" /> Remove
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2 flex-1">
+              <Label>Photo</Label>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-14 w-14">
+                  {photoUrl && <AvatarImage src={photoUrl} alt={name || "athlete"} />}
+                  <AvatarFallback>
+                    {(name.trim()[0] || "?").toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => onPickPhoto(e.target.files?.[0])}
+                />
+                <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()} className="gap-1.5">
+                  <Upload className="h-4 w-4" /> {photoUrl ? "Change" : "Upload"}
                 </Button>
-              )}
+                {photoUrl && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setPhotoUrl(undefined)} className="gap-1.5">
+                    <X className="h-4 w-4" /> Remove
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2 w-24">
+              <Label htmlFor="alert">Alert (min)</Label>
+              <Input
+                id="alert"
+                inputMode="decimal"
+                value={alertMinutes}
+                onChange={(e) => setAlertMinutes(e.target.value)}
+                placeholder="3"
+              />
             </div>
           </div>
           <div className="space-y-2">
