@@ -70,6 +70,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   const [paceMS, setPaceMS] = useState(""); 
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // ดึงข้อมูลเก่ามาใส่ในช่องกรอก (รวมถึงค่า Pace ที่เคยบันทึกไว้ด้วย)
   useEffect(() => {
     if (open) {
       setName(athlete?.name ?? "");
@@ -80,9 +81,13 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       setPhotoUrl(athlete?.photoUrl);
       setEventId(athlete?.eventId);
       setGoalDistanceKm(athlete?.goalDistanceKm ? String(athlete.goalDistanceKm) : "");
+      
+      // ดึงค่า Pace ที่เคยบันทึกไว้มาแสดง (ถ้ามี)
+      // @ts-ignore - targetPace might be dynamic
+      setPaceMS(athlete?.targetPace ?? "");
+
       const m = athlete?.goalDurationMinutes ?? 0;
       setGoalHM(m > 0 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : "");
-      setPaceMS("");
     }
   }, [open, athlete]);
 
@@ -135,6 +140,8 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       alertMinutes: alertMinutesNum,
       photoUrl,
       eventId: eventId,
+      // บันทึกค่า Pace ลงไปในฐานข้อมูลด้วย
+      targetPace: paceMS, 
       goalDistanceKm: selectedEvent?.kind === "time" ? parseFloat(goalDistanceKm) : undefined,
       goalDurationMinutes: selectedEvent?.kind === "distance" ? parseHM(goalHM) : undefined,
     };
@@ -146,7 +153,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     onOpenChange(false);
   };
 
-  // UI Calculation logics
   const renderBottomGrid = () => {
     if (!selectedEvent) {
       return (
@@ -264,7 +270,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Row 1: Photo and Alert */}
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2 flex-1">
               <Label>Photo</Label>
@@ -290,13 +295,11 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
             </div>
           </div>
 
-          {/* Row 2: Name */}
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="boy" autoFocus />
           </div>
 
-          {/* Row 3: Race Event */}
           <div className="space-y-2">
             <Label>Race event</Label>
             <Select value={eventId ?? NONE_VALUE} onValueChange={(v) => setEventId(v === NONE_VALUE ? undefined : v)}>
@@ -314,7 +317,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
             </Select>
           </div>
 
-          {/* Row 4: Unit */}
           <div className="space-y-2">
             <Label>Unit</Label>
             <ToggleGroup type="single" value={unit} onValueChange={(v) => v && setUnit(v as DistanceUnit)} className="justify-start">
@@ -323,10 +325,8 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
             </ToggleGroup>
           </div>
 
-          {/* Row 5: Calculated Grid */}
           {renderBottomGrid()}
 
-          {/* Row 6: Summary */}
           {previewLaps > 0 && (
             <div className="rounded-xl bg-secondary/40 p-3 text-sm">
               <span className="text-muted-foreground">Total laps:</span>{" "}
