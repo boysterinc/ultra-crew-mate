@@ -97,18 +97,24 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     } catch { /* ignore */ }
   };
 
+  // ระบบตรวจสอบเวลาฐาน 60 อย่างเข้มงวด
   const parsePaceToSeconds = (s: string): number => {
     if (!s) return 0;
-    const t = s.trim().replace('.', ':'); // เปลี่ยน . เป็น : ให้อัตโนมัติเพื่อช่วยแก้เลขฐาน 10
-    const parts = t.split(':');
+    const t = s.trim();
     
+    // ตรวจสอบว่ามีการใส่จุดทศนิยมหรือไม่ (เช่น 5.7)
+    if (t.includes('.')) return -2; 
+
+    const parts = t.split(':');
     if (parts.length === 2) {
       const mins = parseInt(parts[0], 10) || 0;
       const secs = parseInt(parts[1], 10) || 0;
-      if (secs >= 60) return -1; // แจ้ง Error ว่าวินาทีเกิน
+      // ล๊อคห้ามวินาทีเกิน 59
+      if (secs >= 60) return -1; 
       return mins * 60 + secs;
     }
     
+    // กรณีใส่ตัวเลขตัวเดียว (ถือว่าเป็นนาที)
     const dec = parseFloat(t);
     return !isNaN(dec) && dec > 0 ? dec * 60 : 0;
   };
@@ -117,7 +123,10 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     setPaceMS(val);
     const sec = parsePaceToSeconds(val);
 
-    if (sec === -1) {
+    if (sec === -2) {
+      setPaceError("กรุณาใช้เครื่องหมาย : แทนจุด (เช่น 5:30)");
+      return;
+    } else if (sec === -1) {
       setPaceError("วินาทีต้องไม่เกิน 59 (เช่น 5:59)");
       return;
     } else {
@@ -134,8 +143,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
         const durMin = (selectedEvent?.durationMinutes ?? 0);
         const totalSec = durMin * 60;
         const distResult = totalSec / sec;
-        const distKm = unit === "mi" ? distResult * 1.609344 : distResult;
-        setGoalDistanceKm(distKm.toFixed(2));
+        setGoalDistanceKm(distResult.toFixed(2));
       }
     }
   };
@@ -246,20 +254,24 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
             </ToggleGroup>
           </div>
 
-          {/* Grid คำนวณด้านล่าง */}
           <div className="grid grid-cols-3 gap-3 items-end">
             <div className="space-y-2">
               <Label className="text-xs">km/lap</Label>
               <Input inputMode="decimal" value={lapDistance} onChange={(e) => setLapDistance(e.target.value)} placeholder="4" />
             </div>
             <div className="space-y-2 relative">
-              <Label className="text-xs">Target pace (นาที:วินาที)</Label>
-              <Input 
-                value={paceMS} 
-                onChange={(e) => handlePaceChange(e.target.value, kmToUnit(selectedEvent?.distanceKm ?? 0), selectedEvent?.kind ?? 'distance')} 
-                placeholder="5:30"
-                className={paceError ? "border-destructive ring-destructive" : ""}
-              />
+              <Label className="text-xs">Target pace (min/{unit})</Label>
+              <div className="relative flex items-center">
+                <Input 
+                  value={paceMS} 
+                  onChange={(e) => handlePaceChange(e.target.value, kmToUnit(selectedEvent?.distanceKm ?? 0), selectedEvent?.kind ?? 'distance')} 
+                  placeholder="5:30"
+                  className={`pr-16 ${paceError ? "border-destructive ring-destructive" : ""}`}
+                />
+                <span className="absolute right-3 text-[10px] text-muted-foreground/60 pointer-events-none">
+                  นาที:วินาที
+                </span>
+              </div>
             </div>
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">
@@ -271,7 +283,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
             </div>
           </div>
 
-          {/* ข้อความแจ้งเตือน Error เรื่องเวลา */}
           {paceError && (
             <div className="flex items-center gap-2 text-xs text-destructive font-medium animate-in fade-in slide-in-from-top-1">
               <AlertCircle className="h-3 w-3" /> {paceError}
