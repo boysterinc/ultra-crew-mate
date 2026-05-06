@@ -97,55 +97,47 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     } catch { /* ignore */ }
   };
 
-  // ระบบตรวจสอบเวลาฐาน 60 (Lock x.01 - x.59)
+  // ระบบตรวจสอบและคำนวณเวลาฐาน 60 (นาที.วินาที)
   const parsePaceToSeconds = (s: string): number => {
     if (!s) return 0;
     const t = s.trim();
-    
-    // แยกส่วนนาทีและวินาที (รองรับทั้ง . และ :)
     const parts = t.includes(':') ? t.split(':') : t.split('.');
     
     if (parts.length === 2) {
       const mins = parseInt(parts[0], 10) || 0;
       const rawSecs = parts[1];
       const secs = parseInt(rawSecs, 10) || 0;
-
-      // 1. ล๊อคห้ามวินาทีเกิน 59
-      if (secs > 59) return -1; 
-      
-      // 2. ล๊อคห้ามใส่แบบ 5.7 หรือ 5.8 (ต้องใส่ 5.07 หรือ 5:07)
-      // ตรวจสอบว่าถ้ามีแค่ตัวเลขเดียวและค่านั้น > 5 ให้ถือว่าผิดฐานเวลา
-      if (rawSecs.length === 1 && secs > 5) return -1;
-
+      if (secs > 59 || (rawSecs.length === 1 && secs > 5)) return -1;
       return mins * 60 + secs;
     }
-    
-    // กรณีใส่ตัวเลขตัวเดียว (เช่น ใส่ 5) ถือว่าเป็น 5 นาที 0 วินาที
     const dec = parseFloat(t);
     return !isNaN(dec) && dec > 0 ? dec * 60 : 0;
   };
 
   const handlePaceChange = (val: string, distInUnit: number, type: 'distance' | 'time') => {
     setPaceMS(val);
-    const sec = parsePaceToSeconds(val);
+    const paceSeconds = parsePaceToSeconds(val);
 
-    if (sec === -1) {
-      setPaceError("รูปแบบเวลาผิด! วินาทีต้องอยู่ระหว่าง .01 ถึง .59 เท่านั้น");
+    if (paceSeconds === -1) {
+      setPaceError("วินาทีต้องไม่เกิน 59 (เช่น 5.59)");
       return;
     } else {
       setPaceError(null);
     }
 
-    if (sec > 0 && distInUnit > 0) {
-      if (type === 'distance') {
-        const totalMin = (sec * distInUnit) / 60;
-        const hh = Math.floor(totalMin / 60);
-        const mm = Math.round(totalMin - hh * 60);
-        setGoalHM(`${hh}:${String(mm).padStart(2, "0")}`);
-      } else {
+    if (paceSeconds > 0) {
+      if (type === 'distance' && distInUnit > 0) {
+        // คำนวณเวลาจบ: เพส(วินาที) * ระยะทาง
+        const totalSec = paceSeconds * distInUnit;
+        const hh = Math.floor(totalSec / 3600);
+        const mm = Math.floor((totalSec % 3600) / 60);
+        const ss = Math.round(totalSec % 60);
+        setGoalHM(`${hh}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`);
+      } else if (type === 'time') {
+        // คำนวณระยะทาง: เวลาแข่ง(วินาที) / เพส(วินาที)
         const durMin = (selectedEvent?.durationMinutes ?? 0);
-        const totalSec = durMin * 60;
-        const distResult = totalSec / sec;
+        const totalRaceSec = durMin * 60;
+        const distResult = totalRaceSec / paceSeconds;
         setGoalDistanceKm(distResult.toFixed(2));
       }
     }
