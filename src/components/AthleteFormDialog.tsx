@@ -308,6 +308,62 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
                 </div>
               </div>
             );
+          })() : selectedEvent?.kind === "time" ? (() => {
+            const durMin = selectedEvent.durationMinutes ?? 0;
+            const totalSec = durMin * 60;
+            const parseMS = (s: string): number => {
+              if (!s) return 0;
+              const t = s.trim();
+              const colon = t.match(/^(\d+):(\d{1,2})$/);
+              if (colon) return parseInt(colon[1], 10) * 60 + parseInt(colon[2], 10);
+              const dec = parseFloat(t);
+              if (!isNaN(dec) && dec > 0) return dec * 60;
+              return 0;
+            };
+            const secPerUnit = parseMS(paceMS);
+            let goalDistDisplay = "—";
+            if (secPerUnit > 0 && totalSec > 0) {
+              const distInUnit = totalSec / secPerUnit;
+              goalDistDisplay = `${distInUnit.toFixed(2)} ${unit}`;
+            }
+            return (
+              <div className="grid grid-cols-3 gap-3 items-end">
+                <div className="space-y-2">
+                  <Label htmlFor="lap" className="text-xs whitespace-nowrap block h-4 leading-4">{unit}/lap</Label>
+                  <Input
+                    id="lap"
+                    inputMode="decimal"
+                    value={lapDistance}
+                    onChange={(e) => setLapDistance(e.target.value)}
+                    placeholder="6.7"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pace-time" className="text-xs whitespace-nowrap block h-4 leading-4">Target pace (min/{unit})</Label>
+                  <Input
+                    id="pace-time"
+                    inputMode="numeric"
+                    value={paceMS}
+                    onChange={(e) => {
+                      setPaceMS(e.target.value);
+                      const sec = parseMS(e.target.value);
+                      if (sec > 0 && totalSec > 0) {
+                        const distInUnit = totalSec / sec;
+                        const distKm = unit === "mi" ? distInUnit * 1.609344 : distInUnit;
+                        setGoalDistanceKm(distKm.toFixed(2));
+                      }
+                    }}
+                    placeholder="5:30"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs whitespace-nowrap block h-4 leading-4 text-muted-foreground">Goal Finish Distance</Label>
+                  <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm tabular">
+                    {goalDistDisplay}
+                  </div>
+                </div>
+              </div>
+            );
           })() : (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
@@ -320,25 +376,16 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
                   placeholder="6.7"
                 />
               </div>
-              {!selectedEvent ? (
-                <div className="space-y-2">
-                  <Label htmlFor="target">Target ({unit})</Label>
-                  <Input
-                    id="target"
-                    inputMode="decimal"
-                    value={targetDistance}
-                    onChange={(e) => setTargetDistance(e.target.value)}
-                    placeholder="100"
-                  />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Target ({unit})</Label>
-                  <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm tabular">
-                    {derivedTarget > 0 ? derivedTarget.toFixed(2) : "—"}
-                  </div>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="target">Target ({unit})</Label>
+                <Input
+                  id="target"
+                  inputMode="decimal"
+                  value={targetDistance}
+                  onChange={(e) => setTargetDistance(e.target.value)}
+                  placeholder="100"
+                />
+              </div>
             </div>
           )}
 
