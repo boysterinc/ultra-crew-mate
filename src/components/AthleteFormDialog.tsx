@@ -68,13 +68,11 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   const [goalDistanceKm, setGoalDistanceKm] = useState("");
   const [goalHM, setGoalHM] = useState("");
   
-  // สถานะสำหรับ Dropdown นาทีและวินาที
   const [paceMin, setPaceMin] = useState("5");
   const [paceSec, setPaceSec] = useState("00");
   
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // สร้างตัวเลือกสำหรับ Dropdown
   const minuteOptions = Array.from({ length: 100 }, (_, i) => String(i));
   const secondOptions = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
 
@@ -89,7 +87,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       setEventId(athlete?.eventId);
       setGoalDistanceKm(athlete?.goalDistanceKm ? String(athlete.goalDistanceKm) : "");
       
-      // ดึงค่า Pace เดิมมาแสดงใน Dropdown
       // @ts-ignore
       const oldPace = athlete?.targetPace || "5:00";
       const parts = oldPace.includes(':') ? oldPace.split(':') : oldPace.split('.');
@@ -103,7 +100,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     }
   }, [open, athlete]);
 
-  // ระบบคำนวณฐาน 60 อัตโนมัติเมื่อมีการเปลี่ยนค่า
   useEffect(() => {
     const pMin = parseInt(paceMin) || 0;
     const pSec = parseInt(paceSec) || 0;
@@ -188,7 +184,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* ส่วนรูปภาพและ Alert */}
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2 flex-1">
               <Label>Photo</Label>
@@ -244,17 +239,16 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
             </ToggleGroup>
           </div>
 
-          {/* ส่วนคำนวณ Pace แบบ Dropdown */}
-          <div className="grid grid-cols-3 gap-3 items-end">
+          {/* ปรับแก้ตารางคำนวณ: ลดขนาดคอลัมน์ 1 และขยายคอลัมน์ 2 */}
+          <div className="grid grid-cols-[0.7fr_1.5fr_1fr] gap-3 items-end">
             <div className="space-y-2">
-              <Label className="text-xs">km/lap</Label>
-              <Input inputMode="decimal" value={lapDistance} onChange={(e) => setLapDistance(e.target.value)} placeholder="4" />
+              <Label className="text-xs">{unit}/lap</Label>
+              <Input inputMode="decimal" value={lapDistance} onChange={(e) => setLapDistance(e.target.value)} placeholder="2.2" />
             </div>
             
             <div className="space-y-2">
               <Label className="text-xs font-bold">Target pace (min/{unit})</Label>
               <div className="flex items-center gap-1">
-                {/* เลือกนาที */}
                 <Select value={paceMin} onValueChange={setPaceMin}>
                   <SelectTrigger className="h-10 w-full px-2">
                     <SelectValue />
@@ -268,7 +262,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
                 
                 <span className="font-bold">:</span>
 
-                {/* เลือกวินาที */}
                 <Select value={paceSec} onValueChange={setPaceSec}>
                   <SelectTrigger className="h-10 w-full px-2">
                     <SelectValue />
@@ -284,9 +277,9 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
 
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">
-                {selectedEvent?.kind === 'time' ? "Goal Distance" : "Goal Finish Time"}
+                {selectedEvent?.kind === 'time' ? "Goal Dist" : "Goal Time"}
               </Label>
-              <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-2 text-[13px] tabular overflow-hidden font-bold text-primary">
+              <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-2 text-[12px] tabular overflow-hidden font-bold text-primary">
                 {selectedEvent?.kind === 'time' ? `${parseFloat(goalDistanceKm) || 0} ${unit}` : (goalHM || "—")}
               </div>
             </div>
