@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, X, AlertCircle } from "lucide-react";
+import { Upload, X } from "lucide-react";
 
 const downscaleImage = (file: File, max = 128): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -67,9 +67,16 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   const [eventId, setEventId] = useState<string | undefined>(undefined);
   const [goalDistanceKm, setGoalDistanceKm] = useState("");
   const [goalHM, setGoalHM] = useState("");
-  const [paceMS, setPaceMS] = useState(""); 
-  const [paceError, setPaceError] = useState<string | null>(null);
+  
+  // สถานะสำหรับ Dropdown นาทีและวินาที
+  const [paceMin, setPaceMin] = useState("5");
+  const [paceSec, setPaceSec] = useState("00");
+  
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // สร้างตัวเลือกสำหรับ Dropdown
+  const minuteOptions = Array.from({ length: 100 }, (_, i) => String(i));
+  const secondOptions = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
 
   useEffect(() => {
     if (open) {
@@ -81,13 +88,46 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       setPhotoUrl(athlete?.photoUrl);
       setEventId(athlete?.eventId);
       setGoalDistanceKm(athlete?.goalDistanceKm ? String(athlete.goalDistanceKm) : "");
+      
+      // ดึงค่า Pace เดิมมาแสดงใน Dropdown
       // @ts-ignore
-      setPaceMS(athlete?.targetPace ?? "");
+      const oldPace = athlete?.targetPace || "5:00";
+      const parts = oldPace.includes(':') ? oldPace.split(':') : oldPace.split('.');
+      if (parts.length === 2) {
+        setPaceMin(parts[0]);
+        setPaceSec(parts[1].padStart(2, '0'));
+      }
+
       const m = athlete?.goalDurationMinutes ?? 0;
       setGoalHM(m > 0 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : "");
-      setPaceError(null);
     }
   }, [open, athlete]);
+
+  // ระบบคำนวณฐาน 60 อัตโนมัติเมื่อมีการเปลี่ยนค่า
+  useEffect(() => {
+    const pMin = parseInt(paceMin) || 0;
+    const pSec = parseInt(paceSec) || 0;
+    const totalPaceSeconds = (pMin * 60) + pSec;
+    const selectedEvent = events.find(e => e.id === eventId);
+
+    if (totalPaceSeconds > 0) {
+      if (selectedEvent?.kind === 'distance') {
+        const distKm = selectedEvent.distanceKm ?? 0;
+        const distInUnit = unit === "mi" ? distKm / 1.609344 : distKm;
+        const totalFinishSec = totalPaceSeconds * distInUnit;
+        
+        const hh = Math.floor(totalFinishSec / 3600);
+        const mm = Math.floor((totalFinishSec % 3600) / 60);
+        const ss = Math.round(totalFinishSec % 60);
+        setGoalHM(`${hh}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`);
+      } else if (selectedEvent?.kind === 'time') {
+        const durMin = selectedEvent.durationMinutes ?? 0;
+        const totalRaceSec = durMin * 60;
+        const distResult = totalRaceSec / totalPaceSeconds;
+        setGoalDistanceKm(distResult.toFixed(2));
+      }
+    }
+  }, [paceMin, paceSec, eventId, unit, events]);
 
   const onPickPhoto = async (file: File | undefined) => {
     if (!file) return;
@@ -95,52 +135,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       const url = await downscaleImage(file, 128);
       setPhotoUrl(url);
     } catch { /* ignore */ }
-  };
-
-  // ระบบตรวจสอบและคำนวณเวลาฐาน 60 (นาที.วินาที)
-  const parsePaceToSeconds = (s: string): number => {
-    if (!s) return 0;
-    const t = s.trim();
-    const parts = t.includes(':') ? t.split(':') : t.split('.');
-    
-    if (parts.length === 2) {
-      const mins = parseInt(parts[0], 10) || 0;
-      const rawSecs = parts[1];
-      const secs = parseInt(rawSecs, 10) || 0;
-      if (secs > 59 || (rawSecs.length === 1 && secs > 5)) return -1;
-      return mins * 60 + secs;
-    }
-    const dec = parseFloat(t);
-    return !isNaN(dec) && dec > 0 ? dec * 60 : 0;
-  };
-
-  const handlePaceChange = (val: string, distInUnit: number, type: 'distance' | 'time') => {
-    setPaceMS(val);
-    const paceSeconds = parsePaceToSeconds(val);
-
-    if (paceSeconds === -1) {
-      setPaceError("วินาทีต้องไม่เกิน 59 (เช่น 5.59)");
-      return;
-    } else {
-      setPaceError(null);
-    }
-
-    if (paceSeconds > 0) {
-      if (type === 'distance' && distInUnit > 0) {
-        // คำนวณเวลาจบ: เพส(วินาที) * ระยะทาง
-        const totalSec = paceSeconds * distInUnit;
-        const hh = Math.floor(totalSec / 3600);
-        const mm = Math.floor((totalSec % 3600) / 60);
-        const ss = Math.round(totalSec % 60);
-        setGoalHM(`${hh}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`);
-      } else if (type === 'time') {
-        // คำนวณระยะทาง: เวลาแข่ง(วินาที) / เพส(วินาที)
-        const durMin = (selectedEvent?.durationMinutes ?? 0);
-        const totalRaceSec = durMin * 60;
-        const distResult = totalRaceSec / paceSeconds;
-        setGoalDistanceKm(distResult.toFixed(2));
-      }
-    }
   };
 
   const lapDistanceNum = parseFloat(lapDistance) || 0;
@@ -161,7 +155,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     ? totalLapsFor({ id: "", name: "", lapDistance: lapDistanceNum, targetDistance: targetDistanceNum, unit, alertMinutes: 0, createdAt: 0 })
     : 0;
 
-  const valid = name.trim() && lapDistanceNum > 0 && !paceError && (selectedEvent ? true : targetDistanceNum > 0);
+  const valid = name.trim() && lapDistanceNum > 0 && (selectedEvent ? true : targetDistanceNum > 0);
 
   const onSubmit = () => {
     if (!valid) return;
@@ -173,7 +167,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       alertMinutes: alertMinutesNum,
       photoUrl,
       eventId: eventId,
-      targetPace: paceMS, 
+      targetPace: `${paceMin}:${paceSec}`, 
       goalDistanceKm: selectedEvent?.kind === "time" ? parseFloat(goalDistanceKm) : undefined,
       goalDurationMinutes: selectedEvent?.kind === "distance" ? parseHM(goalHM) : undefined,
     };
@@ -194,6 +188,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* ส่วนรูปภาพและ Alert */}
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2 flex-1">
               <Label>Photo</Label>
@@ -249,40 +244,53 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
             </ToggleGroup>
           </div>
 
+          {/* ส่วนคำนวณ Pace แบบ Dropdown */}
           <div className="grid grid-cols-3 gap-3 items-end">
             <div className="space-y-2">
               <Label className="text-xs">km/lap</Label>
               <Input inputMode="decimal" value={lapDistance} onChange={(e) => setLapDistance(e.target.value)} placeholder="4" />
             </div>
-            <div className="space-y-2 relative">
-              <Label className="text-xs">Target pace (min/{unit})</Label>
-              <div className="relative flex items-center">
-                <Input 
-                  value={paceMS} 
-                  onChange={(e) => handlePaceChange(e.target.value, kmToUnit(selectedEvent?.distanceKm ?? 0), selectedEvent?.kind ?? 'distance')} 
-                  placeholder="5:30"
-                  className={`pr-14 ${paceError ? "border-destructive ring-destructive" : ""}`}
-                />
-                <span className="absolute right-3 text-[10px] text-muted-foreground/60 pointer-events-none">
-                  (mm:ss)
-                </span>
+            
+            <div className="space-y-2">
+              <Label className="text-xs font-bold">Target pace (min/{unit})</Label>
+              <div className="flex items-center gap-1">
+                {/* เลือกนาที */}
+                <Select value={paceMin} onValueChange={setPaceMin}>
+                  <SelectTrigger className="h-10 w-full px-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {minuteOptions.map(m => (
+                      <SelectItem key={m} value={m}>{m} m</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <span className="font-bold">:</span>
+
+                {/* เลือกวินาที */}
+                <Select value={paceSec} onValueChange={setPaceSec}>
+                  <SelectTrigger className="h-10 w-full px-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {secondOptions.map(s => (
+                      <SelectItem key={s} value={s}>{s} s</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">
                 {selectedEvent?.kind === 'time' ? "Goal Distance" : "Goal Finish Time"}
               </Label>
-              <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm tabular">
+              <div className="flex h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-2 text-[13px] tabular overflow-hidden font-bold text-primary">
                 {selectedEvent?.kind === 'time' ? `${parseFloat(goalDistanceKm) || 0} ${unit}` : (goalHM || "—")}
               </div>
             </div>
           </div>
-
-          {paceError && (
-            <div className="flex items-start gap-2 text-[11px] text-destructive font-medium animate-in fade-in slide-in-from-top-1">
-              <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" /> {paceError}
-            </div>
-          )}
 
           {previewLaps > 0 && (
             <div className="rounded-xl bg-secondary/40 p-3 text-sm">
