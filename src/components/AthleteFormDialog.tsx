@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, X, Bluetooth, CheckCircle2 } from "lucide-react";
+import { Upload, X } from "lucide-react";
 
 const downscaleImage = (file: File, max = 128): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -68,10 +68,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   const [goalDistanceKm, setGoalDistanceKm] = useState("");
   const [goalHM, setGoalHM] = useState("");
   
-  // Bluetooth State
-  const [bluetoothDeviceId, setBluetoothDeviceId] = useState<string | undefined>(undefined);
-  const [isLinking, setIsLinking] = useState(false);
-
   const [paceMin, setPaceMin] = useState("5");
   const [paceSec, setPaceSec] = useState("00");
   
@@ -90,10 +86,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       setPhotoUrl(athlete?.photoUrl);
       setEventId(athlete?.eventId);
       setGoalDistanceKm(athlete?.goalDistanceKm ? String(athlete.goalDistanceKm) : "");
-      
-      // Load Bluetooth ID
-      // @ts-ignore
-      setBluetoothDeviceId(athlete?.bluetoothDeviceId);
       
       // @ts-ignore
       const oldPace = athlete?.targetPace || "5:00";
@@ -141,31 +133,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     } catch { /* ignore */ }
   };
 
-  // Function to handle Bluetooth Linking
-  const handleLinkWatch = async () => {
-    if (!navigator.bluetooth) {
-      alert("Browser ของคุณไม่รองรับ Bluetooth ครับ");
-      return;
-    }
-
-    setIsLinking(true);
-    try {
-      // ค้นหาอุปกรณ์บลูทูธ
-      const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
-      });
-
-      if (device) {
-        setBluetoothDeviceId(device.id);
-        console.log("Linked Device ID:", device.id);
-      }
-    } catch (error) {
-      console.error("Bluetooth linking failed:", error);
-    } finally {
-      setIsLinking(false);
-    }
-  };
-
   const lapDistanceNum = parseFloat(lapDistance) || 0;
   const alertMinutesNum = Math.max(0, parseFloat(alertMinutes) || 0);
   const selectedEvent = sortedEvents.find((e) => e.id === eventId);
@@ -197,8 +164,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
       photoUrl,
       eventId: eventId,
       targetPace: `${paceMin}:${paceSec}`, 
-      // @ts-ignore
-      bluetoothDeviceId: bluetoothDeviceId,
       goalDistanceKm: selectedEvent?.kind === "time" ? parseFloat(goalDistanceKm) : undefined,
       goalDurationMinutes: selectedEvent?.kind === "distance" ? parseHM(goalHM) : undefined,
     };
@@ -247,34 +212,6 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="boy" />
-          </div>
-
-          {/* Bluetooth Linking Section */}
-          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
-            <Label className="flex items-center gap-2 text-primary">
-              <Bluetooth className="h-4 w-4" /> Bluetooth Connection (Authorized)
-            </Label>
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-[12px] text-muted-foreground truncate flex-1">
-                {bluetoothDeviceId ? (
-                  <span className="flex items-center gap-1 text-green-600 font-medium">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Linked ID: {bluetoothDeviceId.slice(0, 8)}...
-                  </span>
-                ) : (
-                  "ยังไม่ได้เชื่อมต่อนาฬิกาสำหรับโหมดสแกนเสถียร"
-                )}
-              </div>
-              <Button 
-                type="button" 
-                size="sm" 
-                variant={bluetoothDeviceId ? "outline" : "default"}
-                onClick={handleLinkWatch}
-                disabled={isLinking}
-                className="h-8 gap-1.5"
-              >
-                {isLinking ? "Scanning..." : bluetoothDeviceId ? "Change Watch" : "Link Watch"}
-              </Button>
-            </div>
           </div>
 
           <div className="space-y-2">
