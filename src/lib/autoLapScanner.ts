@@ -1,5 +1,5 @@
-// Global Bluetooth Manager for AutoLap.
-// Updated: Added Audio Heartbeat to prevent Bluetooth speaker sleep.
+// Global Bluetooth Manager for AutoLap (Ultra-Running Support)
+// Updated: Hybrid Scanning (watchAdvertisements + requestLEScan)
 // ---------------------------------------------------------------------------
 import { create } from "zustand";
 import { useEffect } from "react";
@@ -29,27 +29,24 @@ const log = (...args: unknown[]) => {
 
 // --- SILENT HEARTBEAT UTILITY ---
 let silentAudioElement: HTMLAudioElement | null = null;
-
 const startSilentHeartbeat = () => {
   if (typeof window === "undefined") return;
   if (!silentAudioElement) {
-    // สร้างไฟล์เสียงที่เงียบสนิท (Base64 ของไฟล์ MP3 สั้นๆ ที่ไม่มีเสียง)
     const silentSrc = "data:audio/wav;base64,UklGRigAAABXQVZFRm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA== ";
     silentAudioElement = new Audio(silentSrc);
     silentAudioElement.loop = true;
-    silentAudioElement.volume = 0.01; // เบามากจนคนไม่ได้ยิน แต่ระบบรู้ว่าใช้เสียง
+    silentAudioElement.volume = 0.01;
   }
   silentAudioElement.play().catch((err) => log("Audio Heartbeat failed:", err));
 };
-
 const stopSilentHeartbeat = () => {
   if (silentAudioElement) {
     silentAudioElement.pause();
     silentAudioElement = null;
   }
 };
-// -------------------------------
 
+// --- SCANNER STATE & LOGIC ---
 export interface DetectedDevice {
   name: string;
   lastRssi: number;
@@ -75,7 +72,8 @@ interface ScannerState {
 
 const trackers = new Map<string, RssiTracker>();
 let leScan: { stop: () => void; active?: boolean } | null = null;
-let advListener: ((e: any) => void) | null = null;
+let globalAdvListener: ((e: any) => void) | null = null;
+let authorizedWatchers = new Map<string, () => void>(); // cleanup functions for each device
 let scanLoopId: ReturnType<typeof setInterval> | null = null;
 let starting = false;
 
@@ -99,10 +97,7 @@ const getTracker = (deviceName: string): RssiTracker => {
       useAutoLapScanner.setState((s) => ({
         smoothedRssi: { ...s.smoothedRssi, [deviceName]: smoothed },
         phase: { ...s.phase, [deviceName]: phase },
-        inRangeSince: {
-          ...s.inRangeSince,
-          [deviceName]: phase === "in" ? now : null,
-        },
+        inRangeSince: { ...s.inRangeSince, [deviceName]: phase === "in" ? now : null },
       }));
       const machine = getMachineForDevice(deviceName);
       if (machine) {
@@ -111,11 +106,8 @@ const getTracker = (deviceName: string): RssiTracker => {
       }
     },
     onPeak: (event) => {
-      log("peak", deviceName, "rssi=", event.peakRssi.toFixed(1), "at", event.peakAt);
-      useAutoLapScanner.setState((s) => ({
-        lastPeak: { ...s.lastPeak, [deviceName]: event },
-      }));
-      
+      log("peak", deviceName, "rssi=", event.peakRssi.toFixed(1));
+      useAutoLapScanner.setState((s) => ({ lastPeak: { ...s.lastPeak, [deviceName]: event } }));
       const machine = getMachineForDevice(deviceName);
       if (machine) {
         const isAccepted = machine.lapTrigger(event.peakAt);
@@ -123,7 +115,7 @@ const getTracker = (deviceName: string): RssiTracker => {
           const mapping = useDeviceMappingStore.getState().mappings.find((m) => m.device_name === deviceName);
           if (mapping) {
             useRaceStore.getState().addManualLap(mapping.athlete_id, event.peakAt);
-            log("💾 AutoLap Saved for athlete:", mapping.athlete_id);
+            log("💾 AutoLap Saved:", mapping.athlete_id);
           }
         }
         machine.signalLost(event.exitedAt);
@@ -134,41 +126,53 @@ const getTracker = (deviceName: string): RssiTracker => {
   return t;
 };
 
-const teardownLEScan = () => {
-  try { leScan?.stop(); } catch { /* ignore */ }
-  leScan = null;
-  if (advListener && (navigator as any).bluetooth?.removeEventListener) {
-    try {
-      (navigator as any).bluetooth.removeEventListener("advertisementreceived", advListener);
-    } catch { /* ignore */ }
-  }
-  advListener = null;
+const handleAdvertisement = (name: string, rssi: number) => {
+  lastGlobalAdAt = Date.now();
+  const now = Date.now();
+  signalLostLogged.delete(name);
+  
+  useAutoLapScanner.setState((s) => ({
+    lastSeenAt: { ...s.lastSeenAt, [name]: now },
+    detectedDevices: {
+      ...s.detectedDevices,
+      [name]: { name, lastRssi: rssi, lastSeenAt: now, signalLost: false },
+    },
+  }));
+
+  const known = useDeviceMappingStore.getState().mappings.some((m) => m.device_name === name);
+  if (known) getTracker(name).push(rssi, now);
 };
 
-const stopScanLoop = () => {
-  if (scanLoopId !== null) {
-    clearInterval(scanLoopId);
-    scanLoopId = null;
+const teardownAllScans = () => {
+  // Stop Global Scan
+  try { leScan?.stop(); } catch { }
+  leScan = null;
+  if (globalAdvListener && (navigator as any).bluetooth?.removeEventListener) {
+    try { (navigator as any).bluetooth.removeEventListener("advertisementreceived", globalAdvListener); } catch { }
   }
+  globalAdvListener = null;
+
+  // Stop Authorized Watchers
+  authorizedWatchers.forEach((cleanup) => cleanup());
+  authorizedWatchers.clear();
 };
 
 const scanLoopTick = () => {
   const now = Date.now();
   const state = useAutoLapScanner.getState();
 
-  if (state.status === "scanning" && leScan !== null) {
+  // Watchdog
+  if (state.status === "scanning") {
     if (now - lastGlobalAdAt > WATCHDOG_TIMEOUT_MS) {
-      log("watchdog: scan silently died, forcing restart...");
-      lastGlobalAdAt = now; 
-      teardownLEScan(); 
-      setTimeout(() => {
-        void useAutoLapScanner.getState().start();
-      }, 1000);
+      log("watchdog: system silent, restarting...");
+      lastGlobalAdAt = now;
+      void useAutoLapScanner.getState().start();
     }
   }
 
   trackers.forEach((t) => t.tick(now));
-
+  
+  // Signal Lost Logic
   const next: Record<string, DetectedDevice> = {};
   let changed = false;
   for (const [name, dev] of Object.entries(state.detectedDevices)) {
@@ -176,57 +180,13 @@ const scanLoopTick = () => {
     const lost = age > SIGNAL_LOST_AFTER_MS;
     if (lost && !dev.signalLost) {
       changed = true;
-      if (!signalLostLogged.has(name)) {
-        log("signal lost", name, "age=", age, "ms");
-        signalLostLogged.add(name);
-      }
       next[name] = { ...dev, signalLost: true };
     } else {
-      if (!lost) signalLostLogged.delete(name);
       next[name] = dev;
     }
   }
-  
-  if (changed) {
-    useAutoLapScanner.setState({ detectedDevices: next, currentTime: now });
-  } else {
-    useAutoLapScanner.setState({ currentTime: now });
-  }
-
-  if (
-    checkAutoLapAccess() &&
-    state.status === "scanning" &&
-    typeof navigator !== "undefined" &&
-    (navigator as any).bluetooth?.requestLEScan &&
-    leScan === null &&
-    !starting
-  ) {
-    log("scan dropped unexpectedly — auto-restarting");
-    void useAutoLapScanner.getState().start();
-  }
-};
-
-const startScanLoop = () => {
-  if (scanLoopId !== null) return; 
-  log("scan loop start (interval", SCAN_LOOP_INTERVAL_MS, "ms)");
-  scanLoopId = setInterval(scanLoopTick, SCAN_LOOP_INTERVAL_MS);
-};
-
-const recordAdvertisement = (name: string, rssi: number, now: number) => {
-  signalLostLogged.delete(name);
-  useAutoLapScanner.setState((s) => {
-    return {
-      lastSeenAt: { ...s.lastSeenAt, [name]: now },
-      detectedDevices: {
-        ...s.detectedDevices,
-        [name]: { name, lastRssi: rssi, lastSeenAt: now, signalLost: false },
-      },
-    };
-  });
-  const known = useDeviceMappingStore
-    .getState()
-    .mappings.some((m) => m.device_name === name);
-  if (known) getTracker(name).push(rssi, now);
+  if (changed) useAutoLapScanner.setState({ detectedDevices: next, currentTime: now });
+  else useAutoLapScanner.setState({ currentTime: now });
 };
 
 export const useAutoLapScanner = create<ScannerState>((set, get) => ({
@@ -242,71 +202,77 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
 
   start: async () => {
     if (starting) return;
-    if (get().status === "scanning" && leScan !== null) return;
-    
     starting = true;
-    // เมื่อเริ่มสแกน ให้เริ่ม Silent Heartbeat ทันทีเพื่อยึดลำโพงบลูทูธ
     startSilentHeartbeat();
 
     try {
-      const bt: any =
-        typeof navigator !== "undefined" ? (navigator as any).bluetooth : null;
-
-      if (!bt || typeof bt.requestLEScan !== "function") {
-        set({ status: "unsupported", error: null });
-        startScanLoop();
+      const bt = (navigator as any).bluetooth;
+      if (!bt) {
+        set({ status: "unsupported" });
         return;
       }
 
-      teardownLEScan();
-      lastGlobalAdAt = Date.now(); 
+      teardownAllScans();
+      lastGlobalAdAt = Date.now();
 
-      advListener = (event: any) => {
-        lastGlobalAdAt = Date.now(); 
-        const name: string | undefined = event.device?.name;
-        const rssi: number | undefined = event.rssi;
-        if (!name || typeof rssi !== "number") return;
-        recordAdvertisement(name, rssi, Date.now());
-      };
+      // 1. SETUP AUTHORIZED WATCHERS (For Linked Watches)
+      const athletes = useRaceStore.getState().athletes;
+      const linkedAthletes = athletes.filter(a => a.bluetoothDeviceId);
       
-      bt.addEventListener("advertisementreceived", advListener);
-      leScan = await bt.requestLEScan({ acceptAllAdvertisements: true });
-      log("start: requestLEScan active");
+      if (linkedAthletes.length > 0 && bt.getDevices) {
+        const authorizedDevices: any[] = await bt.getDevices();
+        
+        for (const athlete of linkedAthletes) {
+          const device = authorizedDevices.find(d => d.id === athlete.bluetoothDeviceId);
+          if (device) {
+            log(`Starting Authorized Watcher for: ${athlete.name}`);
+            const listener = (event: any) => {
+              const name = event.device.name || athlete.name; // Fallback to athlete name if device name hidden
+              handleAdvertisement(name, event.rssi);
+            };
+            
+            device.addEventListener("advertisementreceived", listener);
+            await device.watchAdvertisements();
+            
+            authorizedWatchers.set(athlete.id, () => {
+              device.removeEventListener("advertisementreceived", listener);
+            });
+          }
+        }
+      }
+
+      // 2. SETUP PASSIVE SCAN (Fallback)
+      if (bt.requestLEScan) {
+        globalAdvListener = (event: any) => {
+          if (event.device?.name) {
+            handleAdvertisement(event.device.name, event.rssi);
+          }
+        };
+        bt.addEventListener("advertisementreceived", globalAdvListener);
+        leScan = await bt.requestLEScan({ acceptAllAdvertisements: true, keepRepeatedDevices: true });
+        log("Global Passive Scan active");
+      }
+
       set({ status: "scanning", error: null });
-      startScanLoop();
+      if (!scanLoopId) scanLoopId = setInterval(scanLoopTick, SCAN_LOOP_INTERVAL_MS);
+
     } catch (err: any) {
-      teardownLEScan();
-      log("start error:", err?.message || err);
-      set({ status: "error", error: err?.message || String(err) });
-      startScanLoop();
+      log("Start Error:", err);
+      set({ status: "error", error: String(err) });
     } finally {
       starting = false;
     }
   },
 
   stop: () => {
-    log("stop");
-    teardownLEScan();
-    stopScanLoop();
-    stopSilentHeartbeat(); // หยุดระบบเสียงเมื่อหยุดสแกน
+    teardownAllScans();
+    if (scanLoopId) { clearInterval(scanLoopId); scanLoopId = null; }
+    stopSilentHeartbeat();
     trackers.forEach((t) => t.reset());
-    signalLostLogged.clear();
-    set({
-      status: "idle",
-      error: null,
-      detectedDevices: {},
-      smoothedRssi: {},
-      lastPeak: {},
-      phase: {},
-      inRangeSince: {},
-      lastSeenAt: {},
-    });
+    set({ status: "idle", detectedDevices: {}, smoothedRssi: {}, lastPeak: {}, phase: {} });
   },
 
-  feedRssiSample: (deviceName, rssi, now = Date.now()) => {
-    lastGlobalAdAt = now;
-    recordAdvertisement(deviceName, rssi, now);
-  },
+  feedRssiSample: (deviceName, rssi, now = Date.now()) => handleAdvertisement(deviceName, rssi),
 }));
 
 export const useAutoLapScannerLifecycle = () => {
@@ -314,48 +280,27 @@ export const useAutoLapScannerLifecycle = () => {
     const sync = () => {
       const unlocked = checkAutoLapAccess();
       const status = useAutoLapScanner.getState().status;
-      if (unlocked && status === "idle") {
-        void useAutoLapScanner.getState().start();
-      } else if (!unlocked && status !== "idle") {
-        useAutoLapScanner.getState().stop();
-      }
+      if (unlocked && status === "idle") void useAutoLapScanner.getState().start();
+      else if (!unlocked && status !== "idle") useAutoLapScanner.getState().stop();
     };
     sync();
-    
-    const id = window.setInterval(sync, 1000);
-    window.addEventListener("storage", sync);
+    const id = setInterval(sync, 2000);
     window.addEventListener("autolap-access-changed", sync);
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        log("Visibility: Screen wake up / Tab visible - checking scanner...");
-        const unlocked = checkAutoLapAccess();
-        if (unlocked) {
-          lastGlobalAdAt = Date.now();
-          void useAutoLapScanner.getState().start();
-        }
-      }
-    };
-
-    const wakeUpOnTouch = () => {
-      const unlocked = checkAutoLapAccess();
-      const status = useAutoLapScanner.getState().status;
-      if (unlocked && status !== "scanning") {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && checkAutoLapAccess()) {
         void useAutoLapScanner.getState().start();
       }
-      // ย้ำระบบเสียงอีกครั้งเผื่อเบราว์เซอร์บล็อกการเล่นอัตโนมัติ
-      if (unlocked) startSilentHeartbeat();
     };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("pointerdown", wakeUpOnTouch);
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("pointerdown", () => {
+      if (checkAutoLapAccess()) startSilentHeartbeat();
+    });
 
     return () => {
-      window.clearInterval(id);
-      window.removeEventListener("storage", sync);
+      clearInterval(id);
       window.removeEventListener("autolap-access-changed", sync);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("pointerdown", wakeUpOnTouch);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
 };
