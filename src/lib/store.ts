@@ -4,51 +4,35 @@ import { Athlete, Lap, NutritionLog, NutritionPlan, RaceEvent, Settings } from "
 
 const STORAGE_KEY = "ultraCrewData";
 
-// Debounced localStorage writer — coalesces rapid state changes into a single write.
 const createDebouncedStorage = (delay = 150): StateStorage => {
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   const pending = new Map<string, string>();
-
   const flush = (key: string) => {
     const value = pending.get(key);
     if (value === undefined) return;
-    try {
-      localStorage.setItem(key, value);
-    } catch (err) {
-      console.error("[ultraCrewData] failed to persist", err);
-    }
+    try { localStorage.setItem(key, value); } catch (err) { console.error("[ultraCrewData] failed to persist", err); }
     pending.delete(key);
     timers.delete(key);
   };
-
   if (typeof window !== "undefined") {
-    // Make sure pending writes are flushed before the tab is closed/hidden.
     const flushAll = () => {
       timers.forEach((t) => clearTimeout(t));
       Array.from(pending.keys()).forEach(flush);
     };
     window.addEventListener("beforeunload", flushAll);
     window.addEventListener("pagehide", flushAll);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") flushAll();
-    });
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushAll(); });
   }
-
   return {
     getItem: (name) => {
       try {
         const raw = localStorage.getItem(name);
         if (!raw) return null;
-        // Validate it's parseable JSON; otherwise treat as corrupted and discard.
         JSON.parse(raw);
         return raw;
       } catch (err) {
         console.warn("[ultraCrewData] corrupted data, resetting", err);
-        try {
-          localStorage.removeItem(name);
-        } catch {
-          /* ignore */
-        }
+        try { localStorage.removeItem(name); } catch { }
         return null;
       }
     },
@@ -56,28 +40,20 @@ const createDebouncedStorage = (delay = 150): StateStorage => {
       pending.set(name, value);
       const existing = timers.get(name);
       if (existing) clearTimeout(existing);
-      timers.set(
-        name,
-        setTimeout(() => flush(name), delay)
-      );
+      timers.set(name, setTimeout(() => flush(name), delay));
     },
     removeItem: (name) => {
       const existing = timers.get(name);
       if (existing) clearTimeout(existing);
       timers.delete(name);
       pending.delete(name);
-      try {
-        localStorage.removeItem(name);
-      } catch {
-        /* ignore */
-      }
+      try { localStorage.removeItem(name); } catch { }
     },
   };
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
-// Distance (in athlete unit) of lap N (1-based), honoring variable-distance events.
 const lapUnitDistance = (athlete: Athlete | undefined, lapNumber: number, events: RaceEvent[]): number => {
   if (!athlete) return 0;
   if (athlete.eventId) {
@@ -99,45 +75,36 @@ interface RaceState {
   events: RaceEvent[];
   settings: Settings;
   selectedAthleteId: string | null;
-  nutritionItems: string[]; // global shared catalog used by all athletes
+  nutritionItems: string[];
 
-  // athletes
   addAthlete: (a: Omit<Athlete, "id" | "createdAt">) => string;
   updateAthlete: (id: string, patch: Partial<Athlete>) => void;
   deleteAthlete: (id: string) => void;
   selectAthlete: (id: string | null) => void;
+  
+  // New Action for Bluetooth Linking
+  linkDevice: (athleteId: string, deviceId: string | undefined) => void;
 
-  // laps (declared in laps section below too)
   addManualLap: (athleteId: string, timestamp: number) => Lap | null;
   updateLapTimestamp: (lapId: string, timestamp: number) => void;
-
-  // events
   addEvent: (e: Omit<RaceEvent, "id" | "order">) => string;
   updateEvent: (id: string, patch: Partial<RaceEvent>) => void;
   deleteEvent: (id: string) => void;
   reorderEvents: (orderedIds: string[]) => void;
   reorderAthletesInEvent: (eventId: string | null, orderedIds: string[]) => void;
-
-  // laps
   recordLap: (athleteId: string) => Lap | null;
   deleteLap: (lapId: string) => void;
   lapsFor: (athleteId: string) => Lap[];
-
-  // nutrition
   setPlan: (athleteId: string, lapNumber: number, items: NutritionPlan["items"]) => void;
   duplicatePlanToRange: (athleteId: string, fromLap: number, toStart: number, toEnd: number) => void;
   toggleLogItem: (athleteId: string, lapNumber: number, itemId: string) => void;
   toggleSkipItem: (athleteId: string, lapNumber: number, itemId: string) => void;
   planFor: (athleteId: string, lapNumber: number) => NutritionPlan | undefined;
   logFor: (athleteId: string, lapNumber: number) => NutritionLog | undefined;
-
-  // shared nutrition catalog
   addNutritionItem: (label: string) => void;
   removeNutritionItem: (label: string) => void;
   renameNutritionItem: (oldLabel: string, newLabel: string) => void;
   reorderNutritionItems: (orderedLabels: string[]) => void;
-
-  // settings
   setDoubleTapMinutes: (m: number) => void;
 }
 
@@ -153,45 +120,6 @@ export const useRaceStore = create<RaceState>()(
       selectedAthleteId: null,
       nutritionItems: ["Gel", "Water", "Electrolytes", "Banana", "Bar", "Salt cap", "Coke"],
 
-      addNutritionItem: (label) => {
-        const trimmed = label.trim();
-        if (!trimmed) return;
-        set((s) =>
-          s.nutritionItems.includes(trimmed)
-            ? s
-            : { nutritionItems: [...s.nutritionItems, trimmed] }
-        );
-      },
-      removeNutritionItem: (label) =>
-        set((s) => ({
-          nutritionItems: s.nutritionItems.filter((x) => x !== label),
-          plans: s.plans.map((p) => ({
-            ...p,
-            items: p.items.filter((it) => it.label !== label),
-          })),
-        })),
-      renameNutritionItem: (oldLabel, newLabel) => {
-        const trimmed = newLabel.trim();
-        if (!trimmed || oldLabel === trimmed) return;
-        set((s) => {
-          if (!s.nutritionItems.includes(oldLabel)) return s;
-          if (s.nutritionItems.includes(trimmed)) return s; // collision
-          return {
-            nutritionItems: s.nutritionItems.map((x) => (x === oldLabel ? trimmed : x)),
-            plans: s.plans.map((p) => ({
-              ...p,
-              items: p.items.map((it) => (it.label === oldLabel ? { ...it, label: trimmed } : it)),
-            })),
-          };
-        });
-      },
-      reorderNutritionItems: (orderedLabels) =>
-        set((s) => {
-          const known = orderedLabels.filter((l) => s.nutritionItems.includes(l));
-          const rest = s.nutritionItems.filter((l) => !known.includes(l));
-          return { nutritionItems: [...known, ...rest] };
-        }),
-
       addAthlete: (a) => {
         const athlete: Athlete = { ...a, id: uid(), createdAt: Date.now() };
         set((s) => ({
@@ -202,6 +130,7 @@ export const useRaceStore = create<RaceState>()(
       },
       updateAthlete: (id, patch) =>
         set((s) => ({ athletes: s.athletes.map((a) => (a.id === id ? { ...a, ...patch } : a)) })),
+      
       deleteAthlete: (id) =>
         set((s) => ({
           athletes: s.athletes.filter((a) => a.id !== id),
@@ -211,6 +140,14 @@ export const useRaceStore = create<RaceState>()(
           selectedAthleteId: s.selectedAthleteId === id ? null : s.selectedAthleteId,
         })),
       selectAthlete: (id) => set({ selectedAthleteId: id }),
+
+      // Implementation of linkDevice
+      linkDevice: (athleteId, deviceId) =>
+        set((s) => ({
+          athletes: s.athletes.map((a) =>
+            a.id === athleteId ? { ...a, bluetoothDeviceId: deviceId } : a
+          ),
+        })),
 
       addEvent: (e) => {
         const id = uid();
@@ -252,21 +189,12 @@ export const useRaceStore = create<RaceState>()(
         const athlete = state.athletes.find((a) => a.id === athleteId);
         if (!athlete) return null;
         const ts = Math.min(Date.now(), Math.max(0, timestamp));
-        const newLap: Lap = {
-          id: uid(),
-          athleteId,
-          lapNumber: 0, // recomputed below
-          timestamp: ts,
-          lapTime: 0,
-          pace: 0,
-        };
+        const newLap: Lap = { id: uid(), athleteId, lapNumber: 0, timestamp: ts, lapTime: 0, pace: 0 };
         let inserted: Lap | null = null;
         set((s) => {
           const all = [...s.laps, newLap].sort((a, b) => a.timestamp - b.timestamp);
           const byAthlete: Record<string, Lap[]> = {};
-          all.forEach((l) => {
-            (byAthlete[l.athleteId] ||= []).push(l);
-          });
+          all.forEach((l) => { (byAthlete[l.athleteId] ||= []).push(l); });
           const recomputed: Lap[] = [];
           Object.values(byAthlete).forEach((arr) => {
             arr.sort((a, b) => a.timestamp - b.timestamp);
@@ -292,9 +220,7 @@ export const useRaceStore = create<RaceState>()(
           if (!s.laps.some((l) => l.id === lapId)) return s;
           const all = s.laps.map((l) => (l.id === lapId ? { ...l, timestamp: ts } : l));
           const byAthlete: Record<string, Lap[]> = {};
-          all.forEach((l) => {
-            (byAthlete[l.athleteId] ||= []).push(l);
-          });
+          all.forEach((l) => { (byAthlete[l.athleteId] ||= []).push(l); });
           const recomputed: Lap[] = [];
           Object.values(byAthlete).forEach((arr) => {
             arr.sort((a, b) => a.timestamp - b.timestamp);
@@ -322,14 +248,7 @@ export const useRaceStore = create<RaceState>()(
         const lapNumber = prior.length + 1;
         const lapKm = lapUnitDistance(athlete, lapNumber, state.events);
         const pace = lapTime > 0 && lapKm > 0 ? lapTime / lapKm : 0;
-        const lap: Lap = {
-          id: uid(),
-          athleteId,
-          lapNumber,
-          timestamp: now,
-          lapTime,
-          pace,
-        };
+        const lap: Lap = { id: uid(), athleteId, lapNumber, timestamp: now, lapTime, pace };
         set((s) => ({ laps: [...s.laps, lap] }));
         return lap;
       },
@@ -337,14 +256,9 @@ export const useRaceStore = create<RaceState>()(
         set((s) => {
           const target = s.laps.find((l) => l.id === lapId);
           if (!target) return s;
-          // Remove and renumber subsequent laps for that athlete
-          const remaining = s.laps
-            .filter((l) => l.id !== lapId)
-            .sort((a, b) => a.timestamp - b.timestamp);
+          const remaining = s.laps.filter((l) => l.id !== lapId).sort((a, b) => a.timestamp - b.timestamp);
           const byAthlete: Record<string, Lap[]> = {};
-          remaining.forEach((l) => {
-            (byAthlete[l.athleteId] ||= []).push(l);
-          });
+          remaining.forEach((l) => { (byAthlete[l.athleteId] ||= []).push(l); });
           const recomputed: Lap[] = [];
           Object.values(byAthlete).forEach((arr) => {
             arr.sort((a, b) => a.timestamp - b.timestamp);
@@ -359,79 +273,62 @@ export const useRaceStore = create<RaceState>()(
           });
           return { laps: recomputed };
         }),
-      lapsFor: (athleteId) =>
-        get()
-          .laps.filter((l) => l.athleteId === athleteId)
-          .sort((a, b) => a.lapNumber - b.lapNumber),
-
-      setPlan: (athleteId, lapNumber, items) =>
-        set((s) => {
-          const others = s.plans.filter((p) => !(p.athleteId === athleteId && p.lapNumber === lapNumber));
-          return { plans: [...others, { athleteId, lapNumber, items }] };
-        }),
+      lapsFor: (athleteId) => get().laps.filter((l) => l.athleteId === athleteId).sort((a, b) => a.lapNumber - b.lapNumber),
+      setPlan: (athleteId, lapNumber, items) => set((s) => {
+        const others = s.plans.filter((p) => !(p.athleteId === athleteId && p.lapNumber === lapNumber));
+        return { plans: [...others, { athleteId, lapNumber, items }] };
+      }),
       duplicatePlanToRange: (athleteId, fromLap, toStart, toEnd) => {
         const src = get().plans.find((p) => p.athleteId === athleteId && p.lapNumber === fromLap);
         if (!src) return;
         for (let n = toStart; n <= toEnd; n++) {
           if (n === fromLap) continue;
-          get().setPlan(
-            athleteId,
-            n,
-            src.items.map((i) => ({ ...i, id: uid() }))
-          );
+          get().setPlan(athleteId, n, src.items.map((i) => ({ ...i, id: uid() })));
         }
       },
-      toggleLogItem: (athleteId, lapNumber, itemId) =>
+      toggleLogItem: (athleteId, lapNumber, itemId) => set((s) => {
+        const existing = s.logs.find((l) => l.athleteId === athleteId && l.lapNumber === lapNumber);
+        if (!existing) return { logs: [...s.logs, { athleteId, lapNumber, completedItemIds: [itemId] }] };
+        const has = existing.completedItemIds.includes(itemId);
+        const updated = { ...existing, completedItemIds: has ? existing.completedItemIds.filter((i) => i !== itemId) : [...existing.completedItemIds, itemId] };
+        return { logs: s.logs.map((l) => l.athleteId === athleteId && l.lapNumber === lapNumber ? updated : l) };
+      }),
+      toggleSkipItem: (athleteId, lapNumber, itemId) => set((s) => {
+        const existing = s.logs.find((l) => l.athleteId === athleteId && l.lapNumber === lapNumber);
+        if (!existing) return { logs: [...s.logs, { athleteId, lapNumber, completedItemIds: [], skippedItemIds: [itemId] }] };
+        const current = existing.skippedItemIds ?? [];
+        const has = current.includes(itemId);
+        const updated = { ...existing, skippedItemIds: has ? current.filter((i) => i !== itemId) : [...current, itemId] };
+        return { logs: s.logs.map((l) => l.athleteId === athleteId && l.lapNumber === lapNumber ? updated : l) };
+      }),
+      planFor: (athleteId, lapNumber) => get().plans.find((p) => p.athleteId === athleteId && p.lapNumber === lapNumber),
+      logFor: (athleteId, lapNumber) => get().logs.find((l) => l.athleteId === athleteId && l.lapNumber === lapNumber),
+      addNutritionItem: (label) => {
+        const trimmed = label.trim();
+        if (!trimmed) return;
+        set((s) => s.nutritionItems.includes(trimmed) ? s : { nutritionItems: [...s.nutritionItems, trimmed] });
+      },
+      removeNutritionItem: (label) => set((s) => ({
+        nutritionItems: s.nutritionItems.filter((x) => x !== label),
+        plans: s.plans.map((p) => ({ ...p, items: p.items.filter((it) => it.label !== label) })),
+      })),
+      renameNutritionItem: (oldLabel, newLabel) => {
+        const trimmed = newLabel.trim();
+        if (!trimmed || oldLabel === trimmed) return;
         set((s) => {
-          const existing = s.logs.find((l) => l.athleteId === athleteId && l.lapNumber === lapNumber);
-          if (!existing) {
-            return {
-              logs: [...s.logs, { athleteId, lapNumber, completedItemIds: [itemId] }],
-            };
-          }
-          const has = existing.completedItemIds.includes(itemId);
-          const updated: NutritionLog = {
-            ...existing,
-            completedItemIds: has
-              ? existing.completedItemIds.filter((i) => i !== itemId)
-              : [...existing.completedItemIds, itemId],
-          };
+          if (!s.nutritionItems.includes(oldLabel)) return s;
+          if (s.nutritionItems.includes(trimmed)) return s;
           return {
-            logs: s.logs.map((l) =>
-              l.athleteId === athleteId && l.lapNumber === lapNumber ? updated : l
-            ),
+            nutritionItems: s.nutritionItems.map((x) => (x === oldLabel ? trimmed : x)),
+            plans: s.plans.map((p) => ({ ...p, items: p.items.map((it) => (it.label === oldLabel ? { ...it, label: trimmed } : it)) })),
           };
-        }),
-      toggleSkipItem: (athleteId, lapNumber, itemId) =>
-        set((s) => {
-          const existing = s.logs.find((l) => l.athleteId === athleteId && l.lapNumber === lapNumber);
-          if (!existing) {
-            return {
-              logs: [
-                ...s.logs,
-                { athleteId, lapNumber, completedItemIds: [], skippedItemIds: [itemId] },
-              ],
-            };
-          }
-          const current = existing.skippedItemIds ?? [];
-          const has = current.includes(itemId);
-          const updated: NutritionLog = {
-            ...existing,
-            skippedItemIds: has
-              ? current.filter((i) => i !== itemId)
-              : [...current, itemId],
-          };
-          return {
-            logs: s.logs.map((l) =>
-              l.athleteId === athleteId && l.lapNumber === lapNumber ? updated : l
-            ),
-          };
-        }),
-      planFor: (athleteId, lapNumber) =>
-        get().plans.find((p) => p.athleteId === athleteId && p.lapNumber === lapNumber),
-      logFor: (athleteId, lapNumber) =>
-        get().logs.find((l) => l.athleteId === athleteId && l.lapNumber === lapNumber),
-
+        });
+      },
+      reorderNutritionItems: (orderedLabels) => set((s) => {
+        const known = orderedLabels.filter((l) => s.nutritionItems.includes(l));
+        const rest = s.nutritionItems.filter((l) => !known.includes(l));
+        return { nutritionItems: [...known, ...rest] };
+      }),
       setDoubleTapMinutes: (m) => set((s) => ({ settings: { ...s.settings, doubleTapThresholdMinutes: m } })),
     }),
     {
@@ -448,11 +345,6 @@ export const useRaceStore = create<RaceState>()(
         selectedAthleteId: state.selectedAthleteId,
         nutritionItems: state.nutritionItems,
       }),
-      onRehydrateStorage: () => (_state, error) => {
-        if (error) {
-          console.warn("[ultraCrewData] rehydrate failed, using defaults", error);
-        }
-      },
     }
   )
 );
