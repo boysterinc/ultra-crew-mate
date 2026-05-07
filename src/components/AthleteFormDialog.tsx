@@ -239,6 +239,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
             </ToggleGroup>
           </div>
 
+          {/* ปรับแก้ตารางคำนวณ: ลดขนาดคอลัมน์ 1 และขยายคอลัมน์ 2 */}
           <div className="grid grid-cols-[0.7fr_1.5fr_1fr] gap-3 items-end">
             <div className="space-y-2">
               <Label className="text-xs">{unit}/lap</Label>
