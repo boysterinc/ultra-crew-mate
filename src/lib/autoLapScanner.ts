@@ -1,4 +1,5 @@
 // Global Bluetooth Manager for AutoLap.
+// Updated: Added Audio Heartbeat to prevent Bluetooth speaker sleep.
 // ---------------------------------------------------------------------------
 import { create } from "zustand";
 import { useEffect } from "react";
@@ -25,6 +26,29 @@ export const WATCHDOG_TIMEOUT_MS = 45_000;
 const log = (...args: unknown[]) => {
   console.log("[BluetoothManager]", ...args);
 };
+
+// --- SILENT HEARTBEAT UTILITY ---
+let silentAudioElement: HTMLAudioElement | null = null;
+
+const startSilentHeartbeat = () => {
+  if (typeof window === "undefined") return;
+  if (!silentAudioElement) {
+    // สร้างไฟล์เสียงที่เงียบสนิท (Base64 ของไฟล์ MP3 สั้นๆ ที่ไม่มีเสียง)
+    const silentSrc = "data:audio/wav;base64,UklGRigAAABXQVZFRm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA== ";
+    silentAudioElement = new Audio(silentSrc);
+    silentAudioElement.loop = true;
+    silentAudioElement.volume = 0.01; // เบามากจนคนไม่ได้ยิน แต่ระบบรู้ว่าใช้เสียง
+  }
+  silentAudioElement.play().catch((err) => log("Audio Heartbeat failed:", err));
+};
+
+const stopSilentHeartbeat = () => {
+  if (silentAudioElement) {
+    silentAudioElement.pause();
+    silentAudioElement = null;
+  }
+};
+// -------------------------------
 
 export interface DetectedDevice {
   name: string;
@@ -132,7 +156,6 @@ const scanLoopTick = () => {
   const now = Date.now();
   const state = useAutoLapScanner.getState();
 
-  // Watchdog เช็กการตายเงียบ
   if (state.status === "scanning" && leScan !== null) {
     if (now - lastGlobalAdAt > WATCHDOG_TIMEOUT_MS) {
       log("watchdog: scan silently died, forcing restart...");
@@ -222,6 +245,9 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
     if (get().status === "scanning" && leScan !== null) return;
     
     starting = true;
+    // เมื่อเริ่มสแกน ให้เริ่ม Silent Heartbeat ทันทีเพื่อยึดลำโพงบลูทูธ
+    startSilentHeartbeat();
+
     try {
       const bt: any =
         typeof navigator !== "undefined" ? (navigator as any).bluetooth : null;
@@ -262,6 +288,7 @@ export const useAutoLapScanner = create<ScannerState>((set, get) => ({
     log("stop");
     teardownLEScan();
     stopScanLoop();
+    stopSilentHeartbeat(); // หยุดระบบเสียงเมื่อหยุดสแกน
     trackers.forEach((t) => t.reset());
     signalLostLogged.clear();
     set({
@@ -316,6 +343,8 @@ export const useAutoLapScannerLifecycle = () => {
       if (unlocked && status !== "scanning") {
         void useAutoLapScanner.getState().start();
       }
+      // ย้ำระบบเสียงอีกครั้งเผื่อเบราว์เซอร์บล็อกการเล่นอัตโนมัติ
+      if (unlocked) startSilentHeartbeat();
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
