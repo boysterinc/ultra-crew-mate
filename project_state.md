@@ -1,27 +1,44 @@
-# 🏁 AutoLap Scanner: Project State
+# 🏁 AutoLap Scanner: สถานะปัจจุบัน (Current Baseline)
 
-## 🏗️ Architecture Summary
-- **Stack:** Next.js (React), Zustand (State Management), Web Bluetooth API.
-- **Core Logic:** สแกน RSSI จาก Bluetooth LE เพื่อหาจุด Peak (Checkpoint) และนับรอบอัตโนมัติ
-- **Platform:** เน้นใช้งานบน Tablet (Chrome/Bluefy)
+## 🌟 ความสามารถหลักของแอปพลิเคชัน
 
-## 🌟 Feature List
-- [x] Device Mapping (ผูกชื่ออุปกรณ์กับนักกีฬา)
-- [x] Real-time RSSI Scanning & Peak Detection
-- [x] Web Bluetooth Watchdog (ระบบกู้คืนเมื่อสแกนหลุด)
-- [x] Screen Wake Lock (ป้องกันจอหลับ)
-- [x] **Silent Heartbeat (ระบบยึดท่อเสียง Bluetooth Speaker)** <- *อัปเดตล่าสุด*
-- [ ] Event Dashboard (ระบบแยกกลุ่มงานวิ่งตามเวลา/ระยะทาง) - *กำลังพัฒนา*
+แอปพลิเคชัน AutoLap Scanner เป็นระบบจัดการการแข่งขันกีฬาที่ใช้เทคโนโลยี Bluetooth Low Energy (BLE) ในการตรวจจับและบันทึกรอบวิ่งของนักกีฬาโดยอัตโนมัติ ออกแบบมาเพื่อใช้งานบนแท็บเล็ต (เช่น Chrome/Bluefy) โดยมีฟังก์ชันการทำงานดังนี้:
 
-## 🛠️ Current Tech Stack & Files
-- `src/lib/store.ts`: หัวใจการเก็บข้อมูล นักกีฬา, รอบวิ่ง, และ Event
-- `src/lib/autoLapScanner.ts`: ควบคุมบลูทูธและ Audio Heartbeat
-- `src/lib/rssiTracker.ts`: อัลกอริทึมคำนวณคลื่นสัญญาณ (กำลังรออ่านไฟล์นี้)
+*   **การสแกนและตรวจจับรอบอัตโนมัติ:**
+    *   ใช้ Web Bluetooth API เพื่อสแกนสัญญาณ RSSI จากอุปกรณ์ BLE ในบริเวณใกล้เคียงแบบเรียลไทม์
+    *   มีอัลกอริทึม (`src/lib/rssiTracker.ts`) ที่ซับซ้อนสำหรับการกรองสัญญาณ (smoothing) และการตรวจจับจุดสูงสุด (Peak) ของสัญญาณ RSSI อย่างแม่นยำ เพื่อยืนยันการผ่านจุด Checkpoint และป้องกันการนับซ้ำที่เกิดจากสัญญาณรบกวน
+    *   [`src/lib/autoLapMachine.ts`](src/lib/autoLapMachine.ts) ทำหน้าที่เป็น Finite State Machine (FSM) สำหรับนักกีฬาแต่ละคน เพื่อควบคุมกฎการนับรอบ โดยจะยอมรับการบันทึกรอบเมื่อนักกีฬาอยู่ในสถานะ "ready" และจะบล็อกการนับซ้ำเมื่ออยู่ในสถานะ "in-checkpoint" เพื่อให้มั่นใจว่าการนับรอบเป็นไปตามเงื่อนไขที่กำหนด
 
-## 🐞 Known Bugs / Pending Issues
-1. **Audio Routing:** เสียงชอบออกลำโพงเครื่องมากกว่าลำโพงบลูทูธ (แก้ไขเบื้องต้นด้วย Silent Heartbeat แล้ว รอผลทดสอบ)
-2. **Event Selection:** นักกีฬายังไม่ได้ถูกแยกตาม Event งานวิ่ง
+*   **การจัดการข้อมูลนักกีฬาและรอบวิ่ง:**
+    *   ระบบใช้ Zustand (`src/lib/store.ts`) ในการจัดการสถานะและข้อมูลสำคัญทั้งหมดของแอปพลิเคชัน รวมถึงข้อมูลนักกีฬา รอบวิ่ง แผนโภชนาการ บันทึกโภชนาการ และการตั้งค่าต่างๆ ข้อมูลเหล่านี้จะถูกบันทึกลงใน Local Storage ของเบราว์เซอร์พร้อมระบบ Debounced Storage เพื่อการบันทึกที่รวดเร็วและมีประสิทธิภาพ
+    *   ผู้ใช้สามารถเพิ่ม ลบ หรือแก้ไขข้อมูลนักกีฬาได้
+    *   สามารถบันทึกรอบวิ่ง (Laps) ของนักกีฬาได้ทั้งจากระบบอัตโนมัติ (ผ่านการสแกน Bluetooth) และการบันทึกด้วยตนเอง (Manual Lap)
+    *   ระบบคำนวณเวลาต่อรอบ (Lap Time) และ Pace โดยอัตโนมัติสำหรับแต่ละรอบที่บันทึกไว้
 
-## 📝 Current TODO (ลำดับถัดไป)
-1. **Analyze RSSI Tracker:** ตรวจสอบความแม่นยำของอัลกอริทึมใน `rssiTracker.ts`
-2. **Event-Driven Development:** เพิ่มหน้า Setting เพื่อสร้าง Event และให้นักกีฬาเลือกสังกัด
+*   **การจับคู่อุปกรณ์ (Device Mapping):**
+    *   มีฟังก์ชันที่ช่วยให้สามารถจับคู่อุปกรณ์ Bluetooth ที่ตรวจพบกับนักกีฬาแต่ละคนได้ ซึ่งเป็นสิ่งสำคัญในการระบุตัวตนของนักกีฬาเมื่อสัญญาณถูกตรวจจับ
+
+*   **ระบบดูแลความเสถียร:**
+    *   **Web Bluetooth Watchdog:** ระบบมีกลไกเฝ้าระวังที่ [`src/lib/autoLapScanner.ts`](src/lib/autoLapScanner.ts) ซึ่งจะตรวจจับและรีสตาร์ทการสแกน Bluetooth โดยอัตโนมัติหากพบว่ากระบวนการสแกนหยุดทำงานโดยไม่คาดคิด เพื่อให้การทำงานต่อเนื่อง
+    *   **Screen Wake Lock:** ป้องกันไม่ให้หน้าจออุปกรณ์เข้าสู่โหมด Sleep ระหว่างการใช้งานแอปพลิเคชัน เพื่อให้การแสดงผลและการสแกนดำเนินต่อไปได้โดยไม่มีการขัดจังหวะ
+    *   **Silent Heartbeat:** เป็นกลไกที่ใช้ในการรักษาสัญญาณเชื่อมต่อกับ Bluetooth Speaker เพื่อให้แน่ใจว่าการแจ้งเตือนด้วยเสียงจะสามารถทำงานได้ตามที่ออกแบบไว้
+
+*   **ระบบโภชนาการ:**
+    *   สามารถสร้างและจัดการแผนโภชนาการ (Nutrition Plan) สำหรับนักกีฬาแต่ละคนในแต่ละรอบวิ่งได้
+    *   สามารถบันทึกการบริโภค (Nutrition Log) และการข้าม (Skipped) รายการโภชนาการสำหรับนักกีฬาในแต่ละรอบ
+    *   มีรายการโภชนาการกลาง (Nutrition Item Catalog) ที่สามารถเพิ่ม แก้ไข ลบ และจัดเรียงลำดับได้ เพื่อให้สามารถเลือกใช้ได้กับนักกีฬาทุกคน
+
+## 🏗️ โครงสร้างโปรเจกต์และไฟล์หลัก
+
+โปรเจกต์ถูกพัฒนาด้วย React และมีการใช้ Zustand สำหรับ State Management โดยมีโครงสร้างไฟล์ที่สำคัญดังนี้:
+
+*   [`src/App.tsx`](src/App.tsx): ไฟล์หลักที่กำหนดโครงสร้างแอปพลิเคชัน, การจัดการ Routing (React Router DOM) และการเริ่มต้น Lifecycle ของ AutoLap Scanner
+*   [`src/lib/store.ts`](src/lib/store.ts): ไฟล์นี้เป็นหัวใจของการจัดการข้อมูลทั้งหมดของแอปพลิเคชัน โดยใช้ Zustand และ Persist Middleware ในการเก็บข้อมูลนักกีฬา, รอบวิ่ง, แผนโภชนาการ, บันทึกโภชนาการ, Event และการตั้งค่าต่างๆ
+*   [`src/lib/autoLapScanner.ts`](src/lib/autoLapScanner.ts): ไฟล์นี้รับผิดชอบการจัดการการเชื่อมต่อ Bluetooth LE, การสแกนหาอุปกรณ์, การประมวลผลสัญญาณที่ได้รับ และการเชื่อมโยงข้อมูลไปยัง `rssiTracker` และ `autoLapMachine` รวมถึงมี Watchdog สำหรับการกู้คืนการสแกนที่หยุดทำงาน
+*   [`src/lib/rssiTracker.ts`](src/lib/rssiTracker.ts): ประกอบด้วยอัลกอริทึมหลักสำหรับการกรองสัญญาณ RSSI, การหาค่าเฉลี่ยในช่วงเวลาที่กำหนด (smoothing) และการตรวจจับจุด Peak ของสัญญาณเพื่อยืนยันการผ่าน Checkpoint
+*   [`src/lib/autoLapMachine.ts`](src/lib/autoLapMachine.ts): ไฟล์นี้ implement State Machine ที่จัดการสถานะการนับรอบของนักกีฬาแต่ละคน (`ready`, `in-checkpoint`) พร้อมกฎการเปลี่ยนสถานะเพื่อป้องกันการนับซ้ำและจัดการการรีเซ็ตเมื่อสัญญาณขาดหายไป
+*   `src/components/`: Directory นี้ประกอบด้วยส่วนประกอบ UI ต่างๆ ของแอปพลิเคชัน เช่น `AthleteCard`, `BluetoothScanner`, `BottomNav`, `UpcomingArrivals` และอื่นๆ
+*   `src/pages/`: Directory นี้ประกอบด้วยหน้าหลักของแอปพลิเคชัน เช่น `Index.tsx`, `AthleteDetail.tsx`, `NutritionPlan.tsx`, `NutritionMatrix.tsx`
+*   `project_state.md`: ไฟล์เอกสารที่สรุปสถานะปัจจุบันของโปรเจกต์, ฟีเจอร์ที่พัฒนาแล้ว, และส่วนที่ยังอยู่ในระหว่างการพัฒนา
+
+
