@@ -261,6 +261,17 @@ const GroupHeader = ({
       <span className="text-xs text-muted-foreground tabular">
         {group.athletes.length}
       </span>
+      {onResetLaps && group.athletes.length > 0 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onResetLaps}
+          className="ml-auto h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-destructive"
+          title="Reset all laps in this event"
+        >
+          <RotateCcw className="h-3.5 w-3.5" /> Reset laps
+        </Button>
+      )}
     </div>
   );
 };
