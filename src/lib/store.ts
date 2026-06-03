@@ -117,6 +117,7 @@ interface RaceState {
   deleteEvent: (id: string) => void;
   reorderEvents: (orderedIds: string[]) => void;
   reorderAthletesInEvent: (eventId: string | null, orderedIds: string[]) => void;
+  resetEventLaps: (eventId: string | null) => void;
 
   // laps
   recordLap: (athleteId: string) => Lap | null;
@@ -246,6 +247,23 @@ export const useRaceStore = create<RaceState>()(
             return idx >= 0 ? { ...a, dashboardOrder: idx } : a;
           }),
         })),
+
+      resetEventLaps: (eventId) =>
+        set((s) => {
+          const targetIds = new Set(
+            s.athletes
+              .filter((a) => (a.eventId ?? null) === (eventId ?? null))
+              .map((a) => a.id)
+          );
+          if (targetIds.size === 0) return s;
+          return {
+            laps: s.laps.filter((l) => !targetIds.has(l.athleteId)),
+            logs: s.logs.filter((l) => !targetIds.has(l.athleteId)),
+            athletes: s.athletes.map((a) =>
+              targetIds.has(a.id) ? { ...a, dnf: false } : a
+            ),
+          };
+        }),
 
       addManualLap: (athleteId, timestamp) => {
         const state = get();

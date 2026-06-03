@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
-import { Plus, Activity, GripVertical } from "lucide-react";
+import { Plus, Activity, GripVertical, RotateCcw } from "lucide-react";
 import AthleteCard from "@/components/AthleteCard";
 import AthleteFormDialog from "@/components/AthleteFormDialog";
 import SettingsButton from "@/components/SettingsButton";
@@ -53,10 +53,12 @@ const Index = () => {
   const deleteAthlete = useRaceStore((s) => s.deleteAthlete);
   const reorderEvents = useRaceStore((s) => s.reorderEvents);
   const reorderAthletesInEvent = useRaceStore((s) => s.reorderAthletesInEvent);
+  const resetEventLaps = useRaceStore((s) => s.resetEventLaps);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Athlete | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Athlete | null>(null);
+  const [confirmReset, setConfirmReset] = useState<AthleteGroup | null>(null);
 
   const sortedEvents = useMemo(() => [...events].sort((a, b) => a.order - b.order), [events]);
 
@@ -164,6 +166,7 @@ const Index = () => {
                     onEditAthlete={(a) => { setEditing(a); setFormOpen(true); }}
                     onDeleteAthlete={(a) => setConfirmDelete(a)}
                     onAthletesReordered={(ids) => reorderAthletesInEvent(g.event!.id, ids)}
+                    onResetLaps={() => setConfirmReset(g)}
                   />
                 ) : (
                   <GroupSection
@@ -175,6 +178,7 @@ const Index = () => {
                     onEditAthlete={(a) => { setEditing(a); setFormOpen(true); }}
                     onDeleteAthlete={(a) => setConfirmDelete(a)}
                     onAthletesReordered={(ids) => reorderAthletesInEvent(null, ids)}
+                    onResetLaps={() => setConfirmReset(g)}
                   />
                 )
               )}
@@ -208,6 +212,33 @@ const Index = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!confirmReset} onOpenChange={(v) => !v && setConfirmReset(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset laps for this event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This clears all recorded laps and nutrition logs for{" "}
+              <span className="font-semibold text-foreground">
+                {confirmReset?.event ? confirmReset.event.name : "Unassigned"}
+              </span>{" "}
+              ({confirmReset?.athletes.length ?? 0} athletes). Athlete settings, goals and nutrition plans are kept. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmReset) resetEventLaps(confirmReset.event?.id ?? null);
+                setConfirmReset(null);
+              }}
+            >
+              Reset laps
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 };
@@ -222,15 +253,18 @@ interface GroupSectionProps {
   onEditAthlete: (a: Athlete) => void;
   onDeleteAthlete: (a: Athlete) => void;
   onAthletesReordered: (ids: string[]) => void;
+  onResetLaps?: () => void;
   dragHandle?: React.HTMLAttributes<HTMLButtonElement>;
 }
 
 const GroupHeader = ({
   group,
   dragHandle,
+  onResetLaps,
 }: {
   group: AthleteGroup;
   dragHandle?: React.HTMLAttributes<HTMLButtonElement>;
+  onResetLaps?: () => void;
 }) => {
   const e = group.event;
   return (
@@ -256,6 +290,17 @@ const GroupHeader = ({
       <span className="text-xs text-muted-foreground tabular">
         {group.athletes.length}
       </span>
+      {onResetLaps && group.athletes.length > 0 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onResetLaps}
+          className="ml-auto h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-destructive"
+          title="Reset all laps in this event"
+        >
+          <RotateCcw className="h-3.5 w-3.5" /> Reset laps
+        </Button>
+      )}
     </div>
   );
 };
@@ -268,6 +313,7 @@ const GroupSection = ({
   onEditAthlete,
   onDeleteAthlete,
   onAthletesReordered,
+  onResetLaps,
   dragHandle,
 }: GroupSectionProps) => {
   const sensors = useSensors(
@@ -291,7 +337,7 @@ const GroupSection = ({
 
   return (
     <section className="space-y-2">
-      <GroupHeader group={group} dragHandle={dragHandle} />
+      <GroupHeader group={group} dragHandle={dragHandle} onResetLaps={onResetLaps} />
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={ids} strategy={rectSortingStrategy}>
           <div className={cn("grid gap-2 sm:gap-3", colsClass)}>
