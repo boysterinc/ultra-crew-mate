@@ -166,6 +166,7 @@ const Index = () => {
                     onEditAthlete={(a) => { setEditing(a); setFormOpen(true); }}
                     onDeleteAthlete={(a) => setConfirmDelete(a)}
                     onAthletesReordered={(ids) => reorderAthletesInEvent(g.event!.id, ids)}
+                    onResetLaps={() => setConfirmReset(g)}
                   />
                 ) : (
                   <GroupSection
@@ -177,6 +178,7 @@ const Index = () => {
                     onEditAthlete={(a) => { setEditing(a); setFormOpen(true); }}
                     onDeleteAthlete={(a) => setConfirmDelete(a)}
                     onAthletesReordered={(ids) => reorderAthletesInEvent(null, ids)}
+                    onResetLaps={() => setConfirmReset(g)}
                   />
                 )
               )}
