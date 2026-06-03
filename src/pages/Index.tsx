@@ -224,15 +224,18 @@ interface GroupSectionProps {
   onEditAthlete: (a: Athlete) => void;
   onDeleteAthlete: (a: Athlete) => void;
   onAthletesReordered: (ids: string[]) => void;
+  onResetLaps?: () => void;
   dragHandle?: React.HTMLAttributes<HTMLButtonElement>;
 }
 
 const GroupHeader = ({
   group,
   dragHandle,
+  onResetLaps,
 }: {
   group: AthleteGroup;
   dragHandle?: React.HTMLAttributes<HTMLButtonElement>;
+  onResetLaps?: () => void;
 }) => {
   const e = group.event;
   return (
