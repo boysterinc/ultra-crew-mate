@@ -53,10 +53,12 @@ const Index = () => {
   const deleteAthlete = useRaceStore((s) => s.deleteAthlete);
   const reorderEvents = useRaceStore((s) => s.reorderEvents);
   const reorderAthletesInEvent = useRaceStore((s) => s.reorderAthletesInEvent);
+  const resetEventLaps = useRaceStore((s) => s.resetEventLaps);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Athlete | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Athlete | null>(null);
+  const [confirmReset, setConfirmReset] = useState<AthleteGroup | null>(null);
 
   const sortedEvents = useMemo(() => [...events].sort((a, b) => a.order - b.order), [events]);
 
