@@ -151,7 +151,11 @@ const Index = () => {
         </div>
       ) : (
         <>
-        <UpcomingArrivals />
+        <div className="lg:flex lg:items-start lg:gap-4">
+          <aside className="lg:sticky lg:top-2 lg:w-44 lg:shrink-0 xl:w-52">
+            <UpcomingArrivals />
+          </aside>
+          <div className="min-w-0 flex-1">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onGroupDragEnd}>
           <SortableContext items={sortableGroupIds} strategy={verticalListSortingStrategy}>
             <div className="space-y-5">
@@ -185,6 +189,8 @@ const Index = () => {
             </div>
           </SortableContext>
         </DndContext>
+          </div>
+        </div>
         </>
       )}
 

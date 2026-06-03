@@ -15,10 +15,10 @@ const UpcomingArrivals = () => {
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const navigate = useNavigate();
 
-  // tick every second so countdowns refresh
+  // tick every minute so countdowns refresh (minute-resolution)
   const [, force] = useState(0);
   useEffect(() => {
-    const t = window.setInterval(() => force((n) => n + 1), 1000);
+    const t = window.setInterval(() => force((n) => n + 1), 60_000);
     return () => window.clearInterval(t);
   }, []);
 
@@ -50,11 +50,11 @@ const UpcomingArrivals = () => {
   };
 
   return (
-    <section className="mb-3">
+    <section className="mb-3 lg:mb-0">
       <h2 className="mb-1.5 px-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
         Upcoming arrivals
       </h2>
-      <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-8">
+      <div className="grid grid-cols-4 gap-2 sm:gap-3 md:grid-cols-6 lg:grid-cols-1 lg:gap-2">
         {upcoming.map(({ athlete, msLeft }) => (
           <UpcomingTile
             key={athlete.id}
@@ -80,24 +80,20 @@ interface TileProps {
 
 const UpcomingTile = ({ athleteId, name, photoUrl, msLeft, onOpen }: TileProps) => {
   const signal = useAthleteSignal(athleteId);
-  const totalSec = Math.max(0, Math.floor(msLeft / 1000));
-  const mm = Math.floor(totalSec / 60);
-  const ss = totalSec % 60;
+  const minutes = Math.max(0, Math.ceil(msLeft / 60_000));
   const overdue = msLeft < -10_000;
   const urgent = !overdue && msLeft < 60_000;
   const soon = !overdue && !urgent && msLeft < 5 * 60_000;
 
   // Priority: Signal > Status > Countdown
   const signalActive = signal.status !== "none";
-  const countdown =
-    mm >= 10 ? `${mm}m` : `${mm}:${String(ss).padStart(2, "0")}`;
   const badgeLabel = signalActive
     ? signal.status === "stay"
       ? "Stay"
       : "In Range"
     : overdue
     ? "!"
-    : countdown;
+    : `${minutes}m`;
 
   const tone = signalActive
     ? signal.status === "stay"
