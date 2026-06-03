@@ -284,6 +284,7 @@ const GroupSection = ({
   onEditAthlete,
   onDeleteAthlete,
   onAthletesReordered,
+  onResetLaps,
   dragHandle,
 }: GroupSectionProps) => {
   const sensors = useSensors(
