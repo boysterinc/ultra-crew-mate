@@ -117,6 +117,7 @@ interface RaceState {
   deleteEvent: (id: string) => void;
   reorderEvents: (orderedIds: string[]) => void;
   reorderAthletesInEvent: (eventId: string | null, orderedIds: string[]) => void;
+  resetEventLaps: (eventId: string | null) => void;
 
   // laps
   recordLap: (athleteId: string) => Lap | null;
