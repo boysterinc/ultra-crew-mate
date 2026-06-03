@@ -308,7 +308,7 @@ const GroupSection = ({
 
   return (
     <section className="space-y-2">
-      <GroupHeader group={group} dragHandle={dragHandle} />
+      <GroupHeader group={group} dragHandle={dragHandle} onResetLaps={onResetLaps} />
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={ids} strategy={rectSortingStrategy}>
           <div className={cn("grid gap-2 sm:gap-3", colsClass)}>
