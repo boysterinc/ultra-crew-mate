@@ -212,6 +212,33 @@ const Index = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!confirmReset} onOpenChange={(v) => !v && setConfirmReset(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset laps for this event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This clears all recorded laps and nutrition logs for{" "}
+              <span className="font-semibold text-foreground">
+                {confirmReset?.event ? confirmReset.event.name : "Unassigned"}
+              </span>{" "}
+              ({confirmReset?.athletes.length ?? 0} athletes). Athlete settings, goals and nutrition plans are kept. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmReset) resetEventLaps(confirmReset.event?.id ?? null);
+                setConfirmReset(null);
+              }}
+            >
+              Reset laps
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 };
