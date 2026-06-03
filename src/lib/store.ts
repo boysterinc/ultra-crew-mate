@@ -248,6 +248,23 @@ export const useRaceStore = create<RaceState>()(
           }),
         })),
 
+      resetEventLaps: (eventId) =>
+        set((s) => {
+          const targetIds = new Set(
+            s.athletes
+              .filter((a) => (a.eventId ?? null) === (eventId ?? null))
+              .map((a) => a.id)
+          );
+          if (targetIds.size === 0) return s;
+          return {
+            laps: s.laps.filter((l) => !targetIds.has(l.athleteId)),
+            logs: s.logs.filter((l) => !targetIds.has(l.athleteId)),
+            athletes: s.athletes.map((a) =>
+              targetIds.has(a.id) ? { ...a, dnf: false } : a
+            ),
+          };
+        }),
+
       addManualLap: (athleteId, timestamp) => {
         const state = get();
         const athlete = state.athletes.find((a) => a.id === athleteId);
