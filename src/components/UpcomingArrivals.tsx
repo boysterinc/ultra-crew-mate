@@ -80,24 +80,20 @@ interface TileProps {
 
 const UpcomingTile = ({ athleteId, name, photoUrl, msLeft, onOpen }: TileProps) => {
   const signal = useAthleteSignal(athleteId);
-  const totalSec = Math.max(0, Math.floor(msLeft / 1000));
-  const mm = Math.floor(totalSec / 60);
-  const ss = totalSec % 60;
+  const minutes = Math.max(0, Math.ceil(msLeft / 60_000));
   const overdue = msLeft < -10_000;
   const urgent = !overdue && msLeft < 60_000;
   const soon = !overdue && !urgent && msLeft < 5 * 60_000;
 
   // Priority: Signal > Status > Countdown
   const signalActive = signal.status !== "none";
-  const countdown =
-    mm >= 10 ? `${mm}m` : `${mm}:${String(ss).padStart(2, "0")}`;
   const badgeLabel = signalActive
     ? signal.status === "stay"
       ? "Stay"
       : "In Range"
     : overdue
     ? "!"
-    : countdown;
+    : `${minutes}m`;
 
   const tone = signalActive
     ? signal.status === "stay"
