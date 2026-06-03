@@ -15,10 +15,10 @@ const UpcomingArrivals = () => {
   const selectAthlete = useRaceStore((s) => s.selectAthlete);
   const navigate = useNavigate();
 
-  // tick every second so countdowns refresh
+  // tick every minute so countdowns refresh (minute-resolution)
   const [, force] = useState(0);
   useEffect(() => {
-    const t = window.setInterval(() => force((n) => n + 1), 1000);
+    const t = window.setInterval(() => force((n) => n + 1), 60_000);
     return () => window.clearInterval(t);
   }, []);
 
