@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
-import { Plus, Activity, GripVertical } from "lucide-react";
+import { Plus, Activity, GripVertical, RotateCcw } from "lucide-react";
 import AthleteCard from "@/components/AthleteCard";
 import AthleteFormDialog from "@/components/AthleteFormDialog";
 import SettingsButton from "@/components/SettingsButton";
