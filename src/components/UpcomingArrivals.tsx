@@ -118,7 +118,7 @@ const UpcomingTile = ({ athleteId, name, photoUrl, eta, onOpen }: TileProps) => 
     <button
       onClick={onOpen}
       className={cn(
-        "group flex flex-col items-center gap-1 rounded-2xl border bg-card p-2 text-center transition-colors",
+        "group flex flex-col items-center gap-1 rounded-2xl border bg-card p-1 text-center transition-colors lg:w-fit",
         borderTone
       )}
     >
