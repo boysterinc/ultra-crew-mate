@@ -22,6 +22,7 @@ export interface RaceEvent {
 export interface Athlete {
   id: string;
   name: string;
+  bib?: string; // Race bib number
   lapDistance: number;
   unit: DistanceUnit;
   targetDistance: number;
