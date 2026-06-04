@@ -80,6 +80,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   useEffect(() => {
     if (open) {
       setName(athlete?.name ?? "");
+      setBib(athlete?.bib ?? "");
       setLapDistance(athlete ? String(athlete.lapDistance) : "");
       setTargetDistance(athlete ? String(athlete.targetDistance) : "");
       setUnit(athlete?.unit ?? "km");
