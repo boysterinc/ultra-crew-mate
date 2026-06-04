@@ -16,6 +16,8 @@ export interface RaceEvent {
   lapDistancesKm?: number[];
   // Km per lap for fixed-lap distance events; auto-applied to athletes assigned to this event.
   lapDistanceKm?: number;
+}
+
 
 export interface Athlete {
   id: string;
