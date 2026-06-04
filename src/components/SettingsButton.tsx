@@ -157,7 +157,10 @@ const SettingsButton = () => {
         distanceKm,
         ...(variable
           ? { lapMode: "variable" as const, lapDistancesKm: lapDists }
-          : { lapMode: "fixed" as const }),
+          : {
+              lapMode: "fixed" as const,
+              lapDistanceKm: Math.max(0, parseFloat(draft.lapDistanceKm) || 0) || undefined,
+            }),
       };
     } else {
       const durationMinutes =
