@@ -59,6 +59,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   const sortedEvents = useMemo(() => [...events].sort((a, b) => a.order - b.order), [events]);
 
   const [name, setName] = useState("");
+  const [bib, setBib] = useState("");
   const [lapDistance, setLapDistance] = useState("");
   const [targetDistance, setTargetDistance] = useState("");
   const [unit, setUnit] = useState<DistanceUnit>("km");
