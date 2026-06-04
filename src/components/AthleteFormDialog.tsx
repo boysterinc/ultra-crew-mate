@@ -127,6 +127,15 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     }
   }, [paceMin, paceSec, eventId, unit, events]);
 
+  // Auto-populate lap distance from event's fixed lap km
+  useEffect(() => {
+    const ev = events.find((e) => e.id === eventId);
+    if (ev?.kind === "distance" && (ev.lapMode ?? "fixed") === "fixed" && ev.lapDistanceKm && ev.lapDistanceKm > 0) {
+      const val = unit === "mi" ? ev.lapDistanceKm / 1.609344 : ev.lapDistanceKm;
+      setLapDistance(String(parseFloat(val.toFixed(4))));
+    }
+  }, [eventId, unit, events]);
+
   const onPickPhoto = async (file: File | undefined) => {
     if (!file) return;
     try {
