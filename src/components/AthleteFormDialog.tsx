@@ -221,9 +221,15 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="boy" />
+          <div className="grid grid-cols-[1fr_6rem] gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="boy" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bib">BIB</Label>
+              <Input id="bib" value={bib} onChange={(e) => setBib(e.target.value)} placeholder="123" className="tabular" />
+            </div>
           </div>
 
           <div className="space-y-2">
