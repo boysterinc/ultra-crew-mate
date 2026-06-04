@@ -168,6 +168,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     if (!valid) return;
     const payload = {
       name: name.trim(),
+      bib: bib.trim() || undefined,
       lapDistance: lapDistanceNum,
       targetDistance: targetDistanceNum,
       unit,
