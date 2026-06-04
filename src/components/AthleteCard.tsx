@@ -107,7 +107,12 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
           </Avatar>
           <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 min-w-0">
-            <h2 className={cn("font-bold leading-tight truncate flex-1 min-w-0", compact ? "text-base sm:text-lg md:text-xl lg:text-2xl" : "text-xl md:text-2xl lg:text-3xl")}>{athlete.name}</h2>
+            <h2 className={cn("font-bold leading-tight truncate flex-1 min-w-0", compact ? "text-base sm:text-lg md:text-xl lg:text-2xl" : "text-xl md:text-2xl lg:text-3xl")}>
+              {athlete.name}
+              {athlete.bib && (
+                <span className={cn("ml-1.5 tabular font-semibold text-muted-foreground", compact ? "text-xs sm:text-sm md:text-base" : "text-sm md:text-base lg:text-lg")}>#{athlete.bib}</span>
+              )}
+            </h2>
             <DeviceWatchIndicator athleteId={athlete.id} compact={compact} />
             <span className={cn("tabular shrink-0 text-muted-foreground", compact ? "text-sm sm:text-base md:text-lg lg:text-xl" : "text-base md:text-lg lg:text-xl")}>
               <span className="text-foreground font-semibold">{lapsDone}</span>/{totalLaps}
