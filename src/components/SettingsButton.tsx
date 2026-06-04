@@ -43,6 +43,7 @@ type Draft = {
   minutes: string;
   lapMode: "fixed" | "variable";
   lapDistancesKm: string[]; // editable per-checkpoint distances (km)
+  lapDistanceKm: string; // km per lap for fixed-lap mode
 };
 
 const emptyDraft = (): Draft => ({
@@ -53,6 +54,7 @@ const emptyDraft = (): Draft => ({
   minutes: "",
   lapMode: "fixed",
   lapDistancesKm: [""],
+  lapDistanceKm: "",
 });
 
 const SettingsButton = () => {
