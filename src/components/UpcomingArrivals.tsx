@@ -23,7 +23,6 @@ const UpcomingArrivals = () => {
   }, []);
 
   const upcoming = useMemo(() => {
-    const now = Date.now();
     return athletes
       .map((a) => {
         const laps = allLaps
@@ -33,13 +32,11 @@ const UpcomingArrivals = () => {
         const finished = isAthleteFinished(a, laps, event);
         const eta = nextEta(laps, a, event);
         if (!eta || finished) return null;
-        const msLeft = eta - now;
-        // include slightly overdue (negative) but drop very stale
-        if (msLeft < -120_000) return null;
-        return { athlete: a, msLeft };
+        return { athlete: a, eta };
       })
-      .filter((x): x is { athlete: typeof athletes[number]; msLeft: number } => !!x)
-      .sort((a, b) => a.msLeft - b.msLeft);
+      .filter((x): x is { athlete: typeof athletes[number]; eta: number } => !!x)
+      .filter((x) => x.eta - Date.now() >= -120_000)
+      .sort((a, b) => a.eta - b.eta);
   }, [athletes, allLaps, events]);
 
   if (upcoming.length === 0) return null;
@@ -54,14 +51,14 @@ const UpcomingArrivals = () => {
       <h2 className="mb-1.5 px-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
         Upcoming arrivals
       </h2>
-      <div className="grid grid-cols-4 gap-2 sm:gap-3 md:grid-cols-6 lg:grid-cols-1 lg:gap-2">
-        {upcoming.map(({ athlete, msLeft }) => (
+      <div className="grid grid-cols-4 gap-2 sm:gap-3 md:grid-cols-6 lg:flex lg:flex-col lg:items-start lg:gap-2">
+        {upcoming.map(({ athlete, eta }) => (
           <UpcomingTile
             key={athlete.id}
             athleteId={athlete.id}
             name={athlete.name}
             photoUrl={athlete.photoUrl}
-            msLeft={msLeft}
+            eta={eta}
             onOpen={() => open(athlete.id)}
           />
         ))}
@@ -74,12 +71,14 @@ interface TileProps {
   athleteId: string;
   name: string;
   photoUrl?: string;
-  msLeft: number;
+  eta: number;
   onOpen: () => void;
 }
 
-const UpcomingTile = ({ athleteId, name, photoUrl, msLeft, onOpen }: TileProps) => {
+const UpcomingTile = ({ athleteId, name, photoUrl, eta, onOpen }: TileProps) => {
   const signal = useAthleteSignal(athleteId);
+  // Recompute countdown each render (driven by parent's minute tick)
+  const msLeft = eta - Date.now();
   const minutes = Math.max(0, Math.ceil(msLeft / 60_000));
   const overdue = msLeft < -10_000;
   const urgent = !overdue && msLeft < 60_000;
