@@ -462,16 +462,29 @@ const DraftForm = ({
             </ToggleGroup>
           </div>
           {draft.lapMode === "fixed" ? (
-            <div className="space-y-1.5">
-              <Label htmlFor="ev-km" className="text-xs">Distance (km)</Label>
-              <Input
-                id="ev-km"
-                inputMode="decimal"
-                value={draft.distanceKm}
-                onChange={(e) => setDraft({ ...draft, distanceKm: e.target.value })}
-                placeholder="50"
-                className="h-9"
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="ev-km" className="text-xs">Total distance (km)</Label>
+                <Input
+                  id="ev-km"
+                  inputMode="decimal"
+                  value={draft.distanceKm}
+                  onChange={(e) => setDraft({ ...draft, distanceKm: e.target.value })}
+                  placeholder="50"
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ev-lap-km" className="text-xs">Km / lap</Label>
+                <Input
+                  id="ev-lap-km"
+                  inputMode="decimal"
+                  value={draft.lapDistanceKm}
+                  onChange={(e) => setDraft({ ...draft, lapDistanceKm: e.target.value })}
+                  placeholder="2.2"
+                  className="h-9"
+                />
+              </div>
             </div>
           ) : (
             <div className="space-y-1.5">
