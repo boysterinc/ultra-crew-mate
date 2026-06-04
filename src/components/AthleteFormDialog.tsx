@@ -59,6 +59,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   const sortedEvents = useMemo(() => [...events].sort((a, b) => a.order - b.order), [events]);
 
   const [name, setName] = useState("");
+  const [bib, setBib] = useState("");
   const [lapDistance, setLapDistance] = useState("");
   const [targetDistance, setTargetDistance] = useState("");
   const [unit, setUnit] = useState<DistanceUnit>("km");
@@ -79,6 +80,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
   useEffect(() => {
     if (open) {
       setName(athlete?.name ?? "");
+      setBib(athlete?.bib ?? "");
       setLapDistance(athlete ? String(athlete.lapDistance) : "");
       setTargetDistance(athlete ? String(athlete.targetDistance) : "");
       setUnit(athlete?.unit ?? "km");
@@ -125,6 +127,15 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     }
   }, [paceMin, paceSec, eventId, unit, events]);
 
+  // Auto-populate lap distance from event's fixed lap km
+  useEffect(() => {
+    const ev = events.find((e) => e.id === eventId);
+    if (ev?.kind === "distance" && (ev.lapMode ?? "fixed") === "fixed" && ev.lapDistanceKm && ev.lapDistanceKm > 0) {
+      const val = unit === "mi" ? ev.lapDistanceKm / 1.609344 : ev.lapDistanceKm;
+      setLapDistance(String(parseFloat(val.toFixed(4))));
+    }
+  }, [eventId, unit, events]);
+
   const onPickPhoto = async (file: File | undefined) => {
     if (!file) return;
     try {
@@ -157,6 +168,7 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
     if (!valid) return;
     const payload = {
       name: name.trim(),
+      bib: bib.trim() || undefined,
       lapDistance: lapDistanceNum,
       targetDistance: targetDistanceNum,
       unit,
@@ -209,9 +221,15 @@ const AthleteFormDialog = ({ open, onOpenChange, athlete }: AthleteFormDialogPro
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="boy" />
+          <div className="grid grid-cols-[1fr_6rem] gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="boy" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bib">BIB</Label>
+              <Input id="bib" value={bib} onChange={(e) => setBib(e.target.value)} placeholder="123" className="tabular" />
+            </div>
           </div>
 
           <div className="space-y-2">

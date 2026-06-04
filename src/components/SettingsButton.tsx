@@ -43,6 +43,7 @@ type Draft = {
   minutes: string;
   lapMode: "fixed" | "variable";
   lapDistancesKm: string[]; // editable per-checkpoint distances (km)
+  lapDistanceKm: string; // km per lap for fixed-lap mode
 };
 
 const emptyDraft = (): Draft => ({
@@ -53,6 +54,7 @@ const emptyDraft = (): Draft => ({
   minutes: "",
   lapMode: "fixed",
   lapDistancesKm: [""],
+  lapDistanceKm: "",
 });
 
 const SettingsButton = () => {
@@ -126,6 +128,7 @@ const SettingsButton = () => {
         e.lapMode === "variable" && e.lapDistancesKm?.length
           ? e.lapDistancesKm.map((d) => String(d))
           : [""],
+      lapDistanceKm: e.lapDistanceKm ? String(e.lapDistanceKm) : "",
     });
   };
 
@@ -154,7 +157,10 @@ const SettingsButton = () => {
         distanceKm,
         ...(variable
           ? { lapMode: "variable" as const, lapDistancesKm: lapDists }
-          : { lapMode: "fixed" as const }),
+          : {
+              lapMode: "fixed" as const,
+              lapDistanceKm: Math.max(0, parseFloat(draft.lapDistanceKm) || 0) || undefined,
+            }),
       };
     } else {
       const durationMinutes =
@@ -456,16 +462,29 @@ const DraftForm = ({
             </ToggleGroup>
           </div>
           {draft.lapMode === "fixed" ? (
-            <div className="space-y-1.5">
-              <Label htmlFor="ev-km" className="text-xs">Distance (km)</Label>
-              <Input
-                id="ev-km"
-                inputMode="decimal"
-                value={draft.distanceKm}
-                onChange={(e) => setDraft({ ...draft, distanceKm: e.target.value })}
-                placeholder="50"
-                className="h-9"
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="ev-km" className="text-xs">Total distance (km)</Label>
+                <Input
+                  id="ev-km"
+                  inputMode="decimal"
+                  value={draft.distanceKm}
+                  onChange={(e) => setDraft({ ...draft, distanceKm: e.target.value })}
+                  placeholder="50"
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ev-lap-km" className="text-xs">Km / lap</Label>
+                <Input
+                  id="ev-lap-km"
+                  inputMode="decimal"
+                  value={draft.lapDistanceKm}
+                  onChange={(e) => setDraft({ ...draft, lapDistanceKm: e.target.value })}
+                  placeholder="2.2"
+                  className="h-9"
+                />
+              </div>
             </div>
           ) : (
             <div className="space-y-1.5">

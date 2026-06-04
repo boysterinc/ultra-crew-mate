@@ -152,7 +152,7 @@ const Index = () => {
       ) : (
         <>
         <div className="lg:flex lg:items-start lg:gap-4">
-          <aside className="lg:sticky lg:top-2 lg:w-44 lg:shrink-0 xl:w-52">
+          <aside className="lg:sticky lg:top-2 lg:w-auto lg:shrink-0">
             <UpcomingArrivals />
           </aside>
           <div className="min-w-0 flex-1">
