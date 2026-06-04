@@ -128,6 +128,7 @@ const SettingsButton = () => {
         e.lapMode === "variable" && e.lapDistancesKm?.length
           ? e.lapDistancesKm.map((d) => String(d))
           : [""],
+      lapDistanceKm: e.lapDistanceKm ? String(e.lapDistanceKm) : "",
     });
   };
 
