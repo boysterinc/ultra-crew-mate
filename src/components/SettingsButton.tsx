@@ -44,6 +44,7 @@ type Draft = {
   lapMode: "fixed" | "variable";
   lapDistancesKm: string[]; // editable per-checkpoint distances (km)
   lapDistanceKm: string; // km per lap for fixed-lap mode
+  resultsUrl: string;
 };
 
 const emptyDraft = (): Draft => ({
@@ -55,6 +56,7 @@ const emptyDraft = (): Draft => ({
   lapMode: "fixed",
   lapDistancesKm: [""],
   lapDistanceKm: "",
+  resultsUrl: "",
 });
 
 const SettingsButton = () => {
@@ -129,6 +131,7 @@ const SettingsButton = () => {
           ? e.lapDistancesKm.map((d) => String(d))
           : [""],
       lapDistanceKm: e.lapDistanceKm ? String(e.lapDistanceKm) : "",
+      resultsUrl: e.resultsUrl ?? "",
     });
   };
 
@@ -142,6 +145,7 @@ const SettingsButton = () => {
     const name = draft.name.trim();
     if (!name) return;
     let payload: Omit<RaceEvent, "id" | "order">;
+    const resultsUrl = draft.resultsUrl.trim() || undefined;
     if (draft.kind === "distance") {
       const variable = draft.lapMode === "variable";
       const lapDists = variable
@@ -155,6 +159,7 @@ const SettingsButton = () => {
         name,
         kind: "distance",
         distanceKm,
+        resultsUrl,
         ...(variable
           ? { lapMode: "variable" as const, lapDistancesKm: lapDists }
           : {
@@ -167,7 +172,7 @@ const SettingsButton = () => {
         Math.max(0, parseInt(draft.hours || "0", 10) || 0) * 60 +
         Math.max(0, parseInt(draft.minutes || "0", 10) || 0);
       if (durationMinutes <= 0) return;
-      payload = { name, kind: "time", durationMinutes };
+      payload = { name, kind: "time", durationMinutes, resultsUrl };
     }
     if (editingId) {
       updateEvent(editingId, payload);
