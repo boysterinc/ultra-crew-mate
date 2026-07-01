@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import BottomNav from "./BottomNav";
 import WeatherWidget from "./WeatherWidget";
 import ScannerStatusIndicator from "./ScannerStatusIndicator";
+import { useRankingsPoller } from "@/hooks/useRankingsPoller";
 
 interface AppShellProps {
   title: string;
@@ -11,6 +12,7 @@ interface AppShellProps {
 }
 
 const AppShell = ({ title, action, children, wide = false }: AppShellProps) => {
+  useRankingsPoller();
   const maxW = wide ? "max-w-7xl" : "max-w-md";
   const mainPad = wide ? "px-2 sm:px-4" : "px-4";
   return (

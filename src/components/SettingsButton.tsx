@@ -44,6 +44,7 @@ type Draft = {
   lapMode: "fixed" | "variable";
   lapDistancesKm: string[]; // editable per-checkpoint distances (km)
   lapDistanceKm: string; // km per lap for fixed-lap mode
+  resultsUrl: string;
 };
 
 const emptyDraft = (): Draft => ({
@@ -55,6 +56,7 @@ const emptyDraft = (): Draft => ({
   lapMode: "fixed",
   lapDistancesKm: [""],
   lapDistanceKm: "",
+  resultsUrl: "",
 });
 
 const SettingsButton = () => {
@@ -129,6 +131,7 @@ const SettingsButton = () => {
           ? e.lapDistancesKm.map((d) => String(d))
           : [""],
       lapDistanceKm: e.lapDistanceKm ? String(e.lapDistanceKm) : "",
+      resultsUrl: e.resultsUrl ?? "",
     });
   };
 
@@ -142,6 +145,7 @@ const SettingsButton = () => {
     const name = draft.name.trim();
     if (!name) return;
     let payload: Omit<RaceEvent, "id" | "order">;
+    const resultsUrl = draft.resultsUrl.trim() || undefined;
     if (draft.kind === "distance") {
       const variable = draft.lapMode === "variable";
       const lapDists = variable
@@ -155,6 +159,7 @@ const SettingsButton = () => {
         name,
         kind: "distance",
         distanceKm,
+        resultsUrl,
         ...(variable
           ? { lapMode: "variable" as const, lapDistancesKm: lapDists }
           : {
@@ -167,7 +172,7 @@ const SettingsButton = () => {
         Math.max(0, parseInt(draft.hours || "0", 10) || 0) * 60 +
         Math.max(0, parseInt(draft.minutes || "0", 10) || 0);
       if (durationMinutes <= 0) return;
-      payload = { name, kind: "time", durationMinutes };
+      payload = { name, kind: "time", durationMinutes, resultsUrl };
     }
     if (editingId) {
       updateEvent(editingId, payload);
@@ -569,6 +574,20 @@ const DraftForm = ({
           </div>
         </div>
       )}
+      <div className="space-y-1.5">
+        <Label htmlFor="ev-results-url" className="text-xs">Results URL (optional)</Label>
+        <Input
+          id="ev-results-url"
+          type="url"
+          value={draft.resultsUrl}
+          onChange={(e) => setDraft({ ...draft, resultsUrl: e.target.value })}
+          placeholder="https://organizer.com/results/..."
+          className="h-9"
+        />
+        <p className="text-[10px] text-muted-foreground">
+          Live leaderboard link — used to auto-fetch each BIB's rank.
+        </p>
+      </div>
       <div className="flex justify-end gap-2">
         <Button variant="ghost" size="sm" onClick={onCancel} className="gap-1">
           <X className="h-3.5 w-3.5" /> Cancel
