@@ -574,6 +574,20 @@ const DraftForm = ({
           </div>
         </div>
       )}
+      <div className="space-y-1.5">
+        <Label htmlFor="ev-results-url" className="text-xs">Results URL (optional)</Label>
+        <Input
+          id="ev-results-url"
+          type="url"
+          value={draft.resultsUrl}
+          onChange={(e) => setDraft({ ...draft, resultsUrl: e.target.value })}
+          placeholder="https://organizer.com/results/..."
+          className="h-9"
+        />
+        <p className="text-[10px] text-muted-foreground">
+          Live leaderboard link — used to auto-fetch each BIB's rank.
+        </p>
+      </div>
       <div className="flex justify-end gap-2">
         <Button variant="ghost" size="sm" onClick={onCancel} className="gap-1">
           <X className="h-3.5 w-3.5" /> Cancel
