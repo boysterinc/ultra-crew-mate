@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { speakArrival } from "@/lib/speech";
 import { useDeviceMappingStore } from "@/lib/deviceMapping";
 import { useAthleteSignal } from "@/lib/autoLapStatus";
+import { useRankingsStore } from "@/lib/rankingsStore";
 
 interface AthleteCardProps {
   athlete: Athlete;
@@ -112,6 +113,7 @@ const AthleteCard = ({ athlete, onEdit, onDelete, compact = false, dragHandlePro
               {athlete.bib && (
                 <span className={cn("ml-1.5 tabular font-semibold text-muted-foreground", compact ? "text-xs sm:text-sm md:text-base" : "text-sm md:text-base lg:text-lg")}>#{athlete.bib}</span>
               )}
+              <RankBadge athlete={athlete} compact={compact} />
             </h2>
             <DeviceWatchIndicator athleteId={athlete.id} compact={compact} />
             <span className={cn("tabular shrink-0 text-muted-foreground", compact ? "text-sm sm:text-base md:text-lg lg:text-xl" : "text-base md:text-lg lg:text-xl")}>
