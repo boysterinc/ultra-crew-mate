@@ -16,6 +16,16 @@ export interface RaceEvent {
   lapDistancesKm?: number[];
   // Km per lap for fixed-lap distance events; auto-applied to athletes assigned to this event.
   lapDistanceKm?: number;
+  // Public results/leaderboard URL for this race — used by the backend to auto-fetch
+  // per-BIB rankings via Firecrawl + AI extraction.
+  resultsUrl?: string;
+}
+
+export interface AthleteRanking {
+  rank: number | null;
+  time?: string | null;
+  status?: string | null;
+  updatedAt: number;
 }
 
 
