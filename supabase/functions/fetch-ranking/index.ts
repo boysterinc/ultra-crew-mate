@@ -12,7 +12,9 @@ interface Ranking {
   rank: number | null;
   time?: string | null;
   status?: string | null;
+  lastCheckpoint?: string | null;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
