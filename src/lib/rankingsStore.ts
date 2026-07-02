@@ -28,7 +28,7 @@ export const useRankingsStore = create<RankingsState>((set, get) => ({
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      const rankings: Array<{ bib: string; rank: number | null; time?: string | null; status?: string | null }> =
+      const rankings: Array<{ bib: string; rank: number | null; time?: string | null; status?: string | null; lastCheckpoint?: string | null }> =
         data?.rankings ?? [];
       const now = Date.now();
       const map: Record<string, AthleteRanking> = { ...(get().byEvent[eventId] ?? {}) };
@@ -38,9 +38,11 @@ export const useRankingsStore = create<RankingsState>((set, get) => ({
           rank: r.rank ?? null,
           time: r.time ?? null,
           status: r.status ?? null,
+          lastCheckpoint: r.lastCheckpoint ?? null,
           updatedAt: now,
         };
       });
+
       set((s) => ({
         byEvent: { ...s.byEvent, [eventId]: map },
         lastFetchedAt: { ...s.lastFetchedAt, [eventId]: now },
