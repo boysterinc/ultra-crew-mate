@@ -78,11 +78,12 @@ Deno.serve(async (req) => {
     const systemPrompt =
       "You are a data extraction assistant for race timing pages. " +
       "Given raw scraped markdown of a race results/leaderboard page and a list of BIB numbers, " +
-      "return the current overall rank (position) and finish/elapsed time for each requested BIB. " +
-      "Look for tables/lists containing rank, position, place, or overall alongside bib numbers. " +
+      "return the current overall rank (position), finish/elapsed time, and the most recent checkpoint/split name (e.g. 'CP3', 'KM 42', 'Aid 5') for each requested BIB. " +
+      "Look for tables/lists containing rank, position, place, or overall alongside bib numbers, plus columns like 'last checkpoint', 'last split', 'latest', 'CP', or 'station'. " +
       "Return STRICT JSON, no prose, matching: " +
-      `{"rankings":[{"bib":"string","rank":number|null,"time":"string|null","status":"string|null"}]}. ` +
-      "If a bib is not found, return rank=null. Status can be 'DNF','FIN','RUN' if visible, else null.";
+      `{"rankings":[{"bib":"string","rank":number|null,"time":"string|null","status":"string|null","lastCheckpoint":"string|null"}]}. ` +
+      "If a bib is not found, return rank=null. Status can be 'DNF','FIN','RUN' if visible, else null. lastCheckpoint should be short (<=12 chars) or null.";
+
 
     const userPrompt =
       `BIBs to find: ${bibs.join(", ")}\n\n--- RACE PAGE CONTENT ---\n${content}`;
