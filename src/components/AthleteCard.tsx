@@ -313,17 +313,31 @@ const RankBadge = ({ athlete, compact }: { athlete: Athlete; compact: boolean })
   if (!rank || rank.rank == null) return null;
   const medal = rank.rank === 1 ? "🥇" : rank.rank === 2 ? "🥈" : rank.rank === 3 ? "🥉" : "🏆";
   return (
-    <span
-      className={cn(
-        "ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-primary/15 text-primary px-1.5 py-0.5 tabular font-bold align-middle",
-        compact ? "text-[10px] sm:text-xs md:text-sm" : "text-xs md:text-sm lg:text-base"
+    <>
+      <span
+        className={cn(
+          "ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-primary/15 text-primary px-1.5 py-0.5 tabular font-bold align-middle",
+          compact ? "text-[10px] sm:text-xs md:text-sm" : "text-xs md:text-sm lg:text-base"
+        )}
+        title={rank.time ? `Time: ${rank.time}` : undefined}
+      >
+        {medal} {rank.rank}
+      </span>
+      {rank.lastCheckpoint && (
+        <span
+          className={cn(
+            "ml-1 tabular text-muted-foreground/80 align-middle truncate",
+            compact ? "text-[9px] sm:text-[10px] md:text-xs" : "text-[10px] md:text-xs"
+          )}
+          title={`Last checkpoint: ${rank.lastCheckpoint}`}
+        >
+          @{rank.lastCheckpoint}
+        </span>
       )}
-      title={rank.time ? `Time: ${rank.time}` : undefined}
-    >
-      {medal} {rank.rank}
-    </span>
+    </>
   );
 };
+
 
 const DeviceWatchIndicator = ({ athleteId, compact }: { athleteId: string; compact: boolean }) => {
   const mapping = useDeviceMappingStore((s) =>

@@ -25,8 +25,10 @@ export interface AthleteRanking {
   rank: number | null;
   time?: string | null;
   status?: string | null;
+  lastCheckpoint?: string | null;
   updatedAt: number;
 }
+
 
 
 export interface Athlete {
