@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       return json({ error: "url and bibs[] required" }, 400);
     }
 
-    // 1) Scrape the results page as markdown
+    // 1) Scrape the results page - try with JS rendering for SPAs
     const fcRes = await fetch("https://api.firecrawl.dev/v2/scrape", {
       method: "POST",
       headers: {
@@ -41,18 +41,32 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         url,
-        formats: ["markdown"],
-        onlyMainContent: true,
+        formats: ["markdown", "html"],
+        onlyMainContent: false,
+        waitFor: 5000,
+        timeout: 45000,
       }),
     });
     const fcData = await fcRes.json();
     if (!fcRes.ok) {
-      return json({ error: `Firecrawl error: ${fcData?.error ?? fcRes.status}` }, 502);
+      console.error("Firecrawl error", fcRes.status, fcData);
+      return json({ error: `Firecrawl error ${fcRes.status}: ${JSON.stringify(fcData).slice(0, 300)}` }, 502);
     }
-    const markdown: string =
-      fcData?.data?.markdown ?? fcData?.markdown ?? "";
+    const doc = fcData?.data ?? fcData;
+    let markdown: string = doc?.markdown ?? "";
+    const html: string = doc?.html ?? doc?.rawHtml ?? "";
+    // Fallback: strip HTML to text if markdown is empty/short
+    if ((!markdown || markdown.length < 20) && html) {
+      markdown = html
+        .replace(/<script[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style[\s\S]*?<\/style>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
     if (!markdown || markdown.length < 20) {
-      return json({ error: "No content scraped" }, 502);
+      console.error("No content. Keys:", Object.keys(doc ?? {}));
+      return json({ error: "No content scraped (page may require JS or block bots)" }, 502);
     }
 
     // Truncate to keep prompt reasonable
